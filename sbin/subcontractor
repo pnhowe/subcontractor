@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+
+import sys
+
+sys.path.insert( 1,  '..')
+
+from subcontractor.daemon import Daemon
+from subcontractor.contractor import Contractor
+from subcontractor.handler import Handler
+
+class Main( Daemon ):
+  default_config_file = '/etc/subcontractor.conf'
+
+  def __init__( self, *args,  **kwargs ):
+    super().__init__( 'subcontractor', *args, **kwargs )
+    self.contractor = None
+    self.site = None
+    self.stop = False
+    self.handler = Handler()
+
+  def config( self, config ):
+    host = config.get( 'contractor', 'host' )
+    port = config.get( 'contractor', 'port' )
+    proxy = config.get( 'contractor', 'proxy' )
+    self.contractor = Contractor( host=host, port=port, proxy=proxy )
+    self.site = config.getInt( 'subcontractor', 'site' )
+    self.poll_interval = config.getInt( 'subcontractor', 'poll_interval' )
+    self.max_job_request_size = config.getInt( 'subcontractor', 'max_job_request_size' )
+    handler.setLimits( job_delay=config.getInt( 'subcontractor', 'job_delay' ), max_concurent_jobs=config.getInt( 'subcontractor', 'max_concurent_jobs' ) )
+
+  def main( self ):
+    logging.debug( 'starting...' )
+    while not self.stop:
+      handler.addJobs( self.contractor.getJobs( self.site, self.plugin_list, min( handler.empty_slots, self.max_job_request_size ) ) )
+      logging.debug( 'delay.' )
+      time.sleep( self.poll_interval )
+
+    logging.debug( 'done.' )
+
+  def stop( self ):
+    self.stop = True
+
+if __name__ == '__main__':
+  Main().run()
