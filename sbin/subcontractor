@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import logging
 
 sys.path.insert( 1,  '..')
 
@@ -23,17 +24,22 @@ class Main( Daemon ):
     port = config.get( 'contractor', 'port' )
     proxy = config.get( 'contractor', 'proxy' )
     self.contractor = Contractor( host=host, port=port, proxy=proxy )
-    self.site = config.getInt( 'subcontractor', 'site' )
-    self.poll_interval = config.getInt( 'subcontractor', 'poll_interval' )
-    self.max_job_request_size = config.getInt( 'subcontractor', 'max_job_request_size' )
-    handler.setLimits( job_delay=config.getInt( 'subcontractor', 'job_delay' ), max_concurent_jobs=config.getInt( 'subcontractor', 'max_concurent_jobs' ) )
-    for plugin in config.getPlugins():
-      handler.setLimits( plugin=plugin, max_concurent_jobs=plugin_max )
+    self.site = config.get( 'subcontractor', 'site' )
+    self.poll_interval = config.getint( 'subcontractor', 'poll_interval' )
+    self.max_job_request_size = config.getint( 'subcontractor', 'max_job_request_size' )
+    self.handler.setLimits( job_delay=config.getint( 'subcontractor', 'job_delay' ), max_concurent_jobs=config.getint( 'subcontractor', 'max_concurent_jobs' ) )
+    for ( name, limit ) in config.items( 'plugins' ):
+      try:
+        limit = int( limit )
+      except ValueError:
+        logger.error( 'invalid limit "{0}" for pluting "{1}"'.format( limit, name ))
+
+      self.handler.setLimits( plugin=name, max_concurent_jobs=int( limit ) )
 
   def main( self ):
     logging.debug( 'starting...' )
     while not self.stop:
-      handler.addJobs( self.contractor.getJobs( self.site, self.plugin_list, min( handler.empty_slots, self.max_job_request_size ) ) )
+      self.handler.addJobs( self.contractor.getJobs( self.site, self.plugin_list, min( handler.empty_slots, self.max_job_request_size ) ) )
       logging.debug( 'delay' )
       time.sleep( self.poll_interval )
 

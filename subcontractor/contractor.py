@@ -5,7 +5,7 @@ class Contractor( object ):
     super().__init__( *args, **kwargs )
     self.cinp = CInP( host=host, port=port, proxy=proxy )
 
-  def get_jobs( self, site, plugin_list, job_count ):
+  def getJobs( self, site, plugin_list, job_count ):
     data = { 'site': site, 'plugin_list': plugin_list, 'job_count': job_count }
     resp = self.cinp.call( '/api/v1/Foreman/jobs(getJobs)', data=data )
 

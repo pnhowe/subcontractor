@@ -3,6 +3,7 @@ import sys
 import signal
 import argparse
 import logging
+import configparser
 
 class Daemon( object ):
   default_config_file = 'config.conf'
@@ -25,7 +26,7 @@ class Daemon( object ):
     parser = argparse.ArgumentParser( description=self.name )
     parser.add_argument( '-c', '--config', help='location of config file', default=self.default_config_file )
     parser.add_argument( '-p', '--pid-file', help='location of the pid file', default='/var/run/{0}.pid'.format( self.name ) )
-    parser.add_argument( '-d', '--debug', help='set logging level to debug', action=store_true )
+    parser.add_argument( '-d', '--debug', help='set logging level to debug', action='store_true' )
     parser.add_argument( '-u', '--user', help='user to run as, if not specified the process continues to run as the user that started it, only applys to backgrang/foreground' )
     parser.add_argument( 'action', help='action to take. background: start and daemonize, foreground: start output to console', choices=( 'background', 'foreground', 'stop', 'status' ), default=None )
 
@@ -43,7 +44,7 @@ class Daemon( object ):
     if args.action == 'background': # has to happen before we start loggin
       logger.handlers = []
       handler = SysLogHandler( address='/dev/log', facility=SysLogHandler.LOG_DAEMON )
-      handler.setFormatter( logging.Formatter( fmt='{0} [%(process)d]: %(message)s'.format( self.name ) )
+      handler.setFormatter( logging.Formatter( fmt='{0} [%(process)d]: %(message)s'.format( self.name ) ) )
       logger.addHandler( handler )
       logger.setLevel( logging.INFO )
 
@@ -53,7 +54,7 @@ class Daemon( object ):
     cur_pid = self._read_pid_file()
     if args.action == 'status':
       if cur_pid is None:
-        print 'Stopped'
+        print( 'Stopped' )
         sys.exit( 0 )
 
       try:
@@ -71,7 +72,7 @@ class Daemon( object ):
 
     if args.action == 'stop':
       if cur_pid is None:
-        print 'Not running'
+        print( 'Not running' )
         sys.exit( 0 )
 
       try:
@@ -95,11 +96,24 @@ class Daemon( object ):
     if args.action == 'background':
       self._daemonize()
 
+    self._write_pid_file()
+
     if args.user is not None:
       self._change_user( args.user )
 
-    logging.debug( 'daemon: loading config...' )
-    self.config( args.config )
+    logging.debug( 'daemon: loading config from "{0}"...'.format( args.config ) )
+    config = configparser.ConfigParser()
+    try:
+      if not config.read( args.config ):
+        logging.error( 'daemon: error reading configfile: "{0}"'.format( args.config ) )
+        sys.exit( 1 )
+    except Exception as e:
+      logging.exception( 'daemon: error parsing configfile: "{0}"'.format( e ) )
+      sys.exit( 1 )
+
+    print( config )
+
+    self.config( config )
 
     logging.debug( 'daemon: starting main function...' )
     try:
@@ -109,8 +123,9 @@ class Daemon( object ):
       logging.exception( 'daemon: Exception "{0}" while executing main.'.format( e ) )
 
     logging.debug( 'daemon: shutting down...' )
+    self._delete_pid_file()
+    logging.debug( 'daemon: done!' )
     logging.shutdown()
-    loggin.debug( 'daemon: done!' )
 
   def _daemonize( self ):
     logging.debug( 'daemon: damonizing...' )
@@ -165,7 +180,11 @@ class Daemon( object ):
 
   def _write_pid_file( self ):
     logging.debug( 'daemon: writing pid to "{0}"'.format( self.pid_file ) )
-    open( self.pid_file, 'w' ).write( '{0}\n'.format( os.getpid() ) )
+    try:
+      open( self.pid_file, 'w' ).write( '{0}\n'.format( os.getpid() ) )
+    except OSError as e:
+      logging.error( 'daemon: unable to create pid file, errno: {0}'.format( e.errno ) )
+      sys.exit( 1 )
 
   def _read_pid_file( self ):
     logging.debug( 'daemon: reading pid file "{0}"'.format( self.pid_file ) )
@@ -175,7 +194,7 @@ class Daemon( object ):
       logging.error( 'daemon: invalid pid file' )
       return None
     except FileNotFoundError:
-      logging.error( 'daemon: pid file not found' )
+      logging.info( 'daemon: pid file not found' )
       return None
 
   def _delete_pid_file( self ):

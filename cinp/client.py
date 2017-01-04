@@ -8,4 +8,4 @@ class CInP( object ):
     self.host = host
     self.port = port
     self.proxy = proxy
-    print( 'cinp client "{0}" "{1}" "{2}"'.formmat( self.host, self.port, self.proxy ) )
+    print( 'cinp client "{0}" "{1}" "{2}"'.format( self.host, self.port, self.proxy ) )
