@@ -27,12 +27,14 @@ class Main( Daemon ):
     self.poll_interval = config.getInt( 'subcontractor', 'poll_interval' )
     self.max_job_request_size = config.getInt( 'subcontractor', 'max_job_request_size' )
     handler.setLimits( job_delay=config.getInt( 'subcontractor', 'job_delay' ), max_concurent_jobs=config.getInt( 'subcontractor', 'max_concurent_jobs' ) )
+    for plugin in config.getPlugins():
+      handler.setLimits( plugin=plugin, max_concurent_jobs=plugin_max )
 
   def main( self ):
     logging.debug( 'starting...' )
     while not self.stop:
       handler.addJobs( self.contractor.getJobs( self.site, self.plugin_list, min( handler.empty_slots, self.max_job_request_size ) ) )
-      logging.debug( 'delay.' )
+      logging.debug( 'delay' )
       time.sleep( self.poll_interval )
 
     logging.debug( 'done.' )

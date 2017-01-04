@@ -26,6 +26,7 @@ class Daemon( object ):
     parser.add_argument( '-c', '--config', help='location of config file', default=self.default_config_file )
     parser.add_argument( '-p', '--pid-file', help='location of the pid file', default='/var/run/{0}.pid'.format( self.name ) )
     parser.add_argument( '-d', '--debug', help='set logging level to debug', action=store_true )
+    parser.add_argument( '-u', '--user', help='user to run as, if not specified the process continues to run as the user that started it, only applys to backgrang/foreground' )
     parser.add_argument( 'action', help='action to take. background: start and daemonize, foreground: start output to console', choices=( 'background', 'foreground', 'stop', 'status' ), default=None )
 
     args = parser.parse_args()
@@ -39,7 +40,7 @@ class Daemon( object ):
     logging.basicConfig()
     logger = logging.getLogger()
 
-    if args.action == 'background':
+    if args.action == 'background': # has to happen before we start loggin
       logger.handlers = []
       handler = SysLogHandler( address='/dev/log', facility=SysLogHandler.LOG_DAEMON )
       handler.setFormatter( logging.Formatter( fmt='{0} [%(process)d]: %(message)s'.format( self.name ) )
@@ -75,6 +76,27 @@ class Daemon( object ):
 
       try:
         os.kill( cur_pid, signal.SIGTERM )
+      except OSError as e:
+        if e.errno == 3:
+          print( 'Process PID "{0}" allready stopped, cleaning up pid file...'.format( cur_pid ) )
+          self._delete_pid_file()
+          sys.exit( 0 )
+        else:
+          print( 'Error stopping pid "{0}", errno: {1}'.format( cur_pid, e.errno ) )
+          sys.exit( 1 )
+
+      print( 'Process PID "{0}" told to stop.'.format( cur_pid ) )
+      sys.exit( 0 )
+
+    if args.action not in ( 'background', 'foreground' ):
+      print( 'daemon: unknown action "{0}"'.format( args.action ) )
+      sys.exit( 1 )
+
+    if args.action == 'background':
+      self._daemonize()
+
+    if args.user is not None:
+      self._change_user( args.user )
 
     logging.debug( 'daemon: loading config...' )
     self.config( args.config )
@@ -123,6 +145,23 @@ class Daemon( object ):
     os.dup2( open( '/dev/null', 'a+', 0 ).fileno(), sys.stdout.fileno() )
     os.dup2( open( '/dev/null', 'a+', 0 ).fileno(), sys.stderr.fileno() )
     loggin.debug( 'daemon: fully daemonized.' )
+
+  def _change_user( self, user_name ):
+    loggin.debug( 'daemon: chaning to user "{0}"...'.format( user_name ) )
+    try:
+      user_pw = pwd.getpwnam( user_name )
+    except KeyError:
+      logging.error( 'daemon: user "{0}" not found'.format( user_name ) )
+      sys.exit( 1 )
+
+    env = os.environ.copy()
+    env[ 'HOME' ]  = user_pw.pw_dir
+    env[ 'LOGNAME' ]  = user_pw.pw_name
+    env[ 'USER' ]  = user_pw.pw_name
+
+    os.setgid( user_pw.pw_gid )
+    os.setuid( user_pw.pw_uid )
+    loggin.debug( 'daemon: user changed.' )
 
   def _write_pid_file( self ):
     logging.debug( 'daemon: writing pid to "{0}"'.format( self.pid_file ) )
