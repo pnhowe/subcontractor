@@ -39,7 +39,7 @@ class Main( Daemon ):
   def main( self ):
     logging.debug( 'starting...' )
     while not self.stop:
-      self.handler.addJobs( self.contractor.getJobs( self.site, self.plugin_list, min( handler.empty_slots, self.max_job_request_size ) ) )
+      self.handler.addJobs( self.contractor.getJobs( self.site, self.handler.plugin_list, min( self.handler.empty_slots, self.max_job_request_size ) ) )
       logging.debug( 'delay' )
       time.sleep( self.poll_interval )
 

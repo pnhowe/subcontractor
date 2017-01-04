@@ -17,6 +17,10 @@ class Handler( object ):
   def empty_slots( self ):
     return self.max_concurent_jobs - len( self.job_queue )
 
+  @property
+  def plugin_list( self ):
+    return self.plugin_map.keys()
+
   def registerPlugin( self, path ):
     module = import_module( path )
 
