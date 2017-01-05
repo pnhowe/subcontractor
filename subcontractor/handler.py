@@ -54,3 +54,6 @@ class Handler( object ):
 
   def addJobs( self, job_list ): # must return immeditally, unless there are more jobs in jobs_list than fit in the remaining slots
     logging.info( 'handler: adding more jobs "{0}"....'.format( job_list ) )
+
+  def wait( self ):
+    pass

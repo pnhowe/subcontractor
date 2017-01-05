@@ -2,6 +2,7 @@
 
 import sys
 import logging
+import time
 
 sys.path.insert( 1,  '..')
 
@@ -16,7 +17,7 @@ class Main( Daemon ):
     super().__init__( 'subcontractor', *args, **kwargs )
     self.contractor = None
     self.site = None
-    self.stop = False
+    self.cont = True
     self.handler = Handler()
 
   def config( self, config ):
@@ -38,15 +39,17 @@ class Main( Daemon ):
 
   def main( self ):
     logging.debug( 'starting...' )
-    while not self.stop:
+    while self.cont:
       self.handler.addJobs( self.contractor.getJobs( self.site, self.handler.plugin_list, min( self.handler.empty_slots, self.max_job_request_size ) ) )
       logging.debug( 'delay' )
-      time.sleep( self.poll_interval )
+      time.sleep( self.poll_interval ) # using time.sleep instead of a event.wait( timeout=? ) to avoid time warping problems, just going to have to wait poll_interval seconds for it to shutdown
 
+    logging.info( 'wiating for jobs to finish' )
+    self.handler.wait()
     logging.debug( 'done.' )
 
   def stop( self ):
-    self.stop = True
+    self.cont = False
 
 if __name__ == '__main__':
   Main().run()

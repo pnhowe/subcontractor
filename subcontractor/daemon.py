@@ -4,6 +4,8 @@ import signal
 import argparse
 import logging
 import configparser
+import pwd
+from logging.handlers import SysLogHandler
 
 class Daemon( object ):
   default_config_file = 'config.conf'
@@ -61,7 +63,7 @@ class Daemon( object ):
         os.kill( cur_pid, 0 )
       except OSError as e:
         if e.errno == 3:
-          print( 'Process PID "{0}" missing.'.format( cur_pid ) )
+          print( 'Process PID "{0}" missing'.format( cur_pid ) )
           sys.exit( 0 )
         else:
           print( 'Error checking pid "{0}", errno: {1}'.format( cur_pid, e.errno ) )
@@ -79,18 +81,22 @@ class Daemon( object ):
         os.kill( cur_pid, signal.SIGTERM )
       except OSError as e:
         if e.errno == 3:
-          print( 'Process PID "{0}" allready stopped, cleaning up pid file...'.format( cur_pid ) )
+          print( 'Process PID "{0}" allready stopped, cleaning up pid file'.format( cur_pid ) )
           self._delete_pid_file()
           sys.exit( 0 )
         else:
           print( 'Error stopping pid "{0}", errno: {1}'.format( cur_pid, e.errno ) )
           sys.exit( 1 )
 
-      print( 'Process PID "{0}" told to stop.'.format( cur_pid ) )
+      print( 'Process PID "{0}" told to stop'.format( cur_pid ) )
       sys.exit( 0 )
 
     if args.action not in ( 'background', 'foreground' ):
       print( 'daemon: unknown action "{0}"'.format( args.action ) )
+      sys.exit( 1 )
+
+    if cur_pid is not None:
+      print( 'Process allready running as PID "{0}"'.format( cur_pid ) )
       sys.exit( 1 )
 
     if args.action == 'background':
@@ -98,8 +104,9 @@ class Daemon( object ):
 
     self._write_pid_file()
 
-    if args.user is not None:
-      self._change_user( args.user )
+    signal.signal( signal.SIGINT, self._sigHandlerStop )
+    signal.signal( signal.SIGQUIT, self._sigHandlerStop )
+    signal.signal( signal.SIGTERM, self._sigHandlerStop )
 
     logging.debug( 'daemon: loading config from "{0}"...'.format( args.config ) )
     config = configparser.ConfigParser()
@@ -111,21 +118,26 @@ class Daemon( object ):
       logging.exception( 'daemon: error parsing configfile: "{0}"'.format( e ) )
       sys.exit( 1 )
 
-    print( config )
+    if args.user is not None:
+      self._change_user( args.user )
 
     self.config( config )
 
     logging.debug( 'daemon: starting main function...' )
     try:
       self.main()
-      logging.debug( 'daemon: main completed.' )
+      logging.debug( 'daemon: main completed' )
     except Exception as e:
-      logging.exception( 'daemon: Exception "{0}" while executing main.'.format( e ) )
+      logging.exception( 'daemon: Exception "{0}" while executing main'.format( e ) )
 
     logging.debug( 'daemon: shutting down...' )
     self._delete_pid_file()
     logging.debug( 'daemon: done!' )
     logging.shutdown()
+
+  def _sigHandlerStop( self, sig, frame ):
+    logging.info( 'daemon: got stop signal' )
+    self.stop()
 
   def _daemonize( self ):
     logging.debug( 'daemon: damonizing...' )
@@ -156,13 +168,16 @@ class Daemon( object ):
     logging.debug( 'daemon: detaching stdin/out/err...' )
     sys.stdout.flush()
     sys.stderr.flush()
-    os.dup2( open( '/dev/null', 'r' ).fileno(), sys.stdin.fileno() )
-    os.dup2( open( '/dev/null', 'a+', 0 ).fileno(), sys.stdout.fileno() )
-    os.dup2( open( '/dev/null', 'a+', 0 ).fileno(), sys.stderr.fileno() )
-    loggin.debug( 'daemon: fully daemonized.' )
+    tmp = open( '/dev/null', 'r' )
+    os.dup2( tmp.fileno(), sys.stdin.fileno() )
+    tmp = open( '/dev/null', 'a+' )
+    os.dup2( tmp.fileno(), sys.stdout.fileno() )
+    tmp = open( '/dev/null', 'a+' )
+    os.dup2( tmp.fileno(), sys.stderr.fileno() )
+    logging.debug( 'daemon: fully daemonized' )
 
   def _change_user( self, user_name ):
-    loggin.debug( 'daemon: chaning to user "{0}"...'.format( user_name ) )
+    logging.debug( 'daemon: chaning to user "{0}"...'.format( user_name ) )
     try:
       user_pw = pwd.getpwnam( user_name )
     except KeyError:
@@ -170,13 +185,13 @@ class Daemon( object ):
       sys.exit( 1 )
 
     env = os.environ.copy()
-    env[ 'HOME' ]  = user_pw.pw_dir
-    env[ 'LOGNAME' ]  = user_pw.pw_name
-    env[ 'USER' ]  = user_pw.pw_name
+    env[ 'HOME' ] = user_pw.pw_dir
+    env[ 'LOGNAME' ] = user_pw.pw_name
+    env[ 'USER' ] = user_pw.pw_name
 
     os.setgid( user_pw.pw_gid )
     os.setuid( user_pw.pw_uid )
-    loggin.debug( 'daemon: user changed.' )
+    logging.debug( 'daemon: user changed' )
 
   def _write_pid_file( self ):
     logging.debug( 'daemon: writing pid to "{0}"'.format( self.pid_file ) )
@@ -198,6 +213,7 @@ class Daemon( object ):
       return None
 
   def _delete_pid_file( self ):
+    logging.debug( 'daemon: removing pid file "{0}"'.format( self.pid_file ) )
     try:
       os.unlink( self.pid_file )
     except FileNotFoundError:
