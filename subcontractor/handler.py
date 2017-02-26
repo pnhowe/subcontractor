@@ -10,37 +10,38 @@ class Handler( object ):
     self.max_concurent_jobs = 0
     self.job_delay = 5
     self.job_queue = []
-    self.plugin_map = {}
-    self.plugin_limit = {}
+    self.module_map = {}
+    self.module_limit = {}
 
   @property
   def empty_slots( self ):
     return self.max_concurent_jobs - len( self.job_queue )
 
   @property
-  def plugin_list( self ):
-    return self.plugin_map.keys()
+  def module_list( self ):
+    return self.module_map.keys()
 
-  def registerPlugin( self, path ):
+  def registerModule( self, path ):
     module = import_module( path )
 
-    self.plugin_map[ module.name ] = module.handler
-    self.plugin_limit[ module.name ] = 0
+    self.module_map[ module.MODULE_NAME ] = module.MODULE_FUNCTIONS
+    self.module_limit[ module.MODULE_NAME ] = 0
 
-
-  def setLimits( self, plugin=None, job_delay=None, max_concurent_jobs=None ):
+  def setLimits( self, module=None, job_delay=None, max_concurent_jobs=None ):
     if max_concurent_jobs is not None and ( max_concurent_jobs < 0 or max_concurent_jobs > 100 ):
       raise TypeError( 'max_concurent_jobs is invalid' )
+
     if job_delay is not None and ( job_delay < 0 or job_delay > 60 ):
       raise TypeError( 'job_delay is invalid' )
 
-    if plugin is not None:
+    if module is not None:
       if max_concurent_jobs is None:
-        raise TypeError( 'max_concurent_jobs is required when plugin is specified' )
+        raise TypeError( 'max_concurent_jobs is required when module is specified' )
+
       try:
-        self.plugin_limit[ plugin ] = max_concurent_jobs
+        self.module_limit[ module ] = max_concurent_jobs
       except KeyError:
-        raise Exception( 'plugin "{0}" not loaded'.format( plugin ) )
+        raise Exception( 'module "{0}" not loaded'.format( module ) )
 
       return
 

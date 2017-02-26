@@ -22,25 +22,30 @@ class Main( Daemon ):
 
   def config( self, config ):
     host = config.get( 'contractor', 'host' )
+    root_path = config.get( 'contractor', 'root_path' )
     port = config.get( 'contractor', 'port' )
     proxy = config.get( 'contractor', 'proxy' )
-    self.contractor = Contractor( host=host, port=port, proxy=proxy )
+    self.contractor = Contractor( host=host, root_path=root_path, port=port, proxy=proxy )
     self.site = config.get( 'subcontractor', 'site' )
     self.poll_interval = config.getint( 'subcontractor', 'poll_interval' )
     self.max_job_request_size = config.getint( 'subcontractor', 'max_job_request_size' )
     self.handler.setLimits( job_delay=config.getint( 'subcontractor', 'job_delay' ), max_concurent_jobs=config.getint( 'subcontractor', 'max_concurent_jobs' ) )
-    for ( name, limit ) in config.items( 'plugins' ):
+    for ( name, limit ) in config.items( 'modules' ):
       try:
         limit = int( limit )
       except ValueError:
-        logger.error( 'invalid limit "{0}" for pluting "{1}"'.format( limit, name ))
+        logger.error( 'invalid limit "{0}" for pluting "{1}"'.format( limit, name ) )
 
-      self.handler.setLimits( plugin=name, max_concurent_jobs=int( limit ) )
+      if limit < 1:
+        continue
+
+      self.handler.registerModule( name )
+      self.handler.setLimits( module=name, max_concurent_jobs=int( limit ) )
 
   def main( self ):
     logging.debug( 'starting...' )
     while self.cont:
-      self.handler.addJobs( self.contractor.getJobs( self.site, self.handler.plugin_list, min( self.handler.empty_slots, self.max_job_request_size ) ) )
+      self.handler.addJobs( self.contractor.getJobs( self.site, self.handler.module_list, min( self.handler.empty_slots, self.max_job_request_size ) ) )
       logging.debug( 'delay' )
       time.sleep( self.poll_interval ) # using time.sleep instead of a event.wait( timeout=? ) to avoid time warping problems, just going to have to wait poll_interval seconds for it to shutdown
 
