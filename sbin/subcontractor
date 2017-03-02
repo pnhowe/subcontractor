@@ -18,38 +18,53 @@ class Main( Daemon ):
     self.contractor = None
     self.site = None
     self.cont = True
-    self.handler = Handler()
+    self.handler = None
 
   def config( self, config ):
+    self.site = config.get( 'subcontractor', 'site' )
     host = config.get( 'contractor', 'host' )
     root_path = config.get( 'contractor', 'root_path' )
     port = config.get( 'contractor', 'port' )
     proxy = config.get( 'contractor', 'proxy' )
-    self.contractor = Contractor( host=host, root_path=root_path, port=port, proxy=proxy )
-    self.site = config.get( 'subcontractor', 'site' )
+    if not proxy:
+      proxy = None
+    self.contractor = Contractor( self.site, host=host, root_path=root_path, port=port, proxy=proxy )
+    item = self.contractor.getSite()
+    if item is None:
+      raise ValueError( 'site "{0}" does not exist'.format( self.site ) )
+    logging.info( 'working with site "{0}"({1})'.format( item[ 'description' ], item[ 'name' ] ) )
+
     self.poll_interval = config.getint( 'subcontractor', 'poll_interval' )
     self.max_job_request_size = config.getint( 'subcontractor', 'max_job_request_size' )
+    self.handler = Handler( self.contractor )
     self.handler.setLimits( job_delay=config.getint( 'subcontractor', 'job_delay' ), max_concurent_jobs=config.getint( 'subcontractor', 'max_concurent_jobs' ) )
     for ( name, limit ) in config.items( 'modules' ):
       try:
         limit = int( limit )
       except ValueError:
-        logger.error( 'invalid limit "{0}" for pluting "{1}"'.format( limit, name ) )
+        logger.error( 'invalid limit "{0}" for module "{1}"'.format( limit, name ) )
 
       if limit < 1:
         continue
 
-      self.handler.registerModule( name )
-      self.handler.setLimits( module=name, max_concurent_jobs=int( limit ) )
+      logging.info( 'loading module "{0}" with limit "{1}"...'.format( name, limit ) )
+
+      self.handler.registerModule( name, limit )
+
+    self.contractor.setModuleList( self.handler.module_list )
 
   def main( self ):
-    logging.debug( 'starting...' )
+    logging.debug( 'running...' )
     while self.cont:
-      self.handler.addJobs( self.contractor.getJobs( self.site, self.handler.module_list, min( self.handler.empty_slots, self.max_job_request_size ) ) )
-      logging.debug( 'delay' )
-      time.sleep( self.poll_interval ) # using time.sleep instead of a event.wait( timeout=? ) to avoid time warping problems, just going to have to wait poll_interval seconds for it to shutdown
+      self.handler.logStatus()
+      self.handler.addJobs( self.contractor.getJobs( min( self.handler.empty_slots, self.max_job_request_size ) ) )
+      logging.debug( 'sleeping for "{0}"...'.format( self.poll_interval ) )
+      for _ in range( 0, self.poll_interval ):
+        if not self.cont:
+          break
+        time.sleep( 1 ) # using time.sleep instead of a event.wait( timeout=? ) to avoid time warping problems
 
-    logging.info( 'wiating for jobs to finish' )
+    logging.info( 'wiating for jobs to finish...' )
     self.handler.wait()
     logging.debug( 'done.' )
 

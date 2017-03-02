@@ -1,12 +1,31 @@
-from cinp.client import CInP
+import logging
 
-class Contractor( object ):
-  def __init__( self, host, root_path, port, proxy,  *args, **kwargs ):
-    super().__init__( *args, **kwargs )
+from cinp.client import CInP, NotFound
+
+class Contractor():
+  def __init__( self, site, host, root_path, port, proxy ):
+    super().__init__()
+    self.module_list = []
+    self.site = '{0}Site/Site:{1}:'.format( root_path, site )
     self.cinp = CInP( host=host, root_path=root_path, port=port, proxy=proxy )
 
-  def getJobs( self, site, plugin_list, job_count ):
-    args = { 'site': site, 'plugin_list': plugin_list, 'job_count': job_count }
-    resp = self.cinp.call( '/api/v1/SubContractor/Dispatch(getJobs)', args=args )
+  def setModuleList( self, module_list ):
+    self.module_list = module_list
 
-    return resp
+  def getSite( self ):
+    try:
+      return self.cinp.get( self.site )
+    except NotFound:
+      return None
+
+  def getJobs( self, job_count ):
+    logging.debug( 'contractor: asking for "{0}" more jobs'.format( job_count ) )
+    return self.cinp.call( '/api/v1/SubContractor/Dispatch(getJobs)', { 'site': self.site, 'module_list': self.module_list, 'job_count': job_count } )
+
+  def jobResults( self, job_id, data, cookie ):
+    logging.debug( 'contractor: sending results for job "{0}"'.format( job_id ) )
+    return self.cinp.call( '/api/v1/SubContractor/Dispatch(jobResults)', { 'job_id': job_id, 'cookie': cookie, 'data': data } )
+
+  def jobError( self, job_id, msg, cookie ):
+    logging.debug( 'contractor: sending error for job "{0}"'.format( job_id ) )
+    self.cinp.call( '/api/v1/SubContractor/Dispatch(jobError)', { 'job_id': job_id, 'cookie': cookie, 'msg': msg } )

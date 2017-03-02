@@ -7,11 +7,11 @@ import configparser
 import pwd
 from logging.handlers import SysLogHandler
 
-class Daemon( object ):
+class Daemon():
   default_config_file = 'config.conf'
 
-  def __init__( self, name, *args, **kwargs ):
-    super().__init__( *args, **kwargs )
+  def __init__( self, name ):
+    super().__init__()
     self.name = name
     self.pid_file = None
 
