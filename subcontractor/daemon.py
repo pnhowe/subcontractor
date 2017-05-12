@@ -7,6 +7,7 @@ import configparser
 import pwd
 from logging.handlers import SysLogHandler
 
+
 class Daemon():
   default_config_file = 'config.conf'
 
@@ -15,13 +16,13 @@ class Daemon():
     self.name = name
     self.pid_file = None
 
-  def config( self, config ): # override
+  def config( self, config ):  # override
     pass
 
-  def stop( self ): # override
+  def stop( self ):  # override
     pass
 
-  def main( self ): # override
+  def main( self ):  # override
     pass
 
   def run( self ):
@@ -43,7 +44,7 @@ class Daemon():
     logging.basicConfig()
     logger = logging.getLogger()
 
-    if args.action == 'background': # has to happen before we start loggin
+    if args.action == 'background':  # has to happen before we start loggin
       logger.handlers = []
       handler = SysLogHandler( address='/dev/log', facility=SysLogHandler.LOG_DAEMON )
       handler.setFormatter( logging.Formatter( fmt='{0} [%(process)d]: %(message)s'.format( self.name ) ) )
@@ -144,7 +145,7 @@ class Daemon():
     logging.debug( 'daemon: first fork...' )
     try:
       pid = os.fork()
-      if pid > 0: # we are the parent, let the child go
+      if pid > 0:  # we are the parent, let the child go
         sys.exit( 0 )
     except OSError as e:
       logging.exception( 'daemon: exception on first fork, errno: {0}'.format( e.errno ) )
@@ -159,7 +160,7 @@ class Daemon():
     logging.debug( 'daemon: second fork...' )
     try:
       pid = os.fork()
-      if pid > 0: # we are the parent, let the child go
+      if pid > 0:  # we are the parent, let the child go
         sys.exit( 0 )
     except OSError as e:
       logging.exception( 'daemon: exception on second fork, errno: {0}'.format( e.errno ) )
