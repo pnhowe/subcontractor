@@ -2,6 +2,7 @@ import logging
 
 from cinp.client import CInP, NotFound
 
+
 class Contractor():
   def __init__( self, site, host, root_path, port, proxy ):
     super().__init__()
@@ -29,3 +30,11 @@ class Contractor():
   def jobError( self, job_id, msg, cookie ):
     logging.debug( 'contractor: sending error for job "{0}"'.format( job_id ) )
     self.cinp.call( '/api/v1/SubContractor/Dispatch(jobError)', { 'job_id': job_id, 'cookie': cookie, 'msg': msg } )
+
+  def getDHCPPools( self ):
+    logging.debug( 'contractor: getting dynamic pools' )
+    return self.cinp.call( '/api/v1/SubContractor/DHCPd(getDynamicPools)', { 'site': self.site } )
+
+  def getStaticMAC( self ):
+    logging.debug( 'contractor: getting static assignments by mac' )
+    return self.cinp.call( '/api/v1/SubContractor/DHCPd(getStaticMAC)', { 'site': self.site } )
