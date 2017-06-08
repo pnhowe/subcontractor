@@ -17,7 +17,7 @@ class DynamicPool():
     self.expires_map = {}  # key is address, value is expires datetime
     self.lease_delta = timedelta( seconds=self.lease_time )
 
-  def lookup( self, mac, assign=False ):
+  def lookup( self, mac, assign ):
     address = None
     try:
       address = self.mac_map[ mac ]
@@ -26,7 +26,7 @@ class DynamicPool():
 
     if address is None and assign is True:
       # create semaphore to lock the address_map
-      for key, value in self.address_map.iteritems():
+      for key, value in self.address_map.items():
         if value is None:
           address = key
           break
@@ -57,6 +57,9 @@ class DynamicPool():
     self.expires_map[ address ] = None
     # release semaphore
     return
+
+  def decline( self, mac ):
+    self.release( mac )
 
   # Update the addresslist to the specified list, anythingnot in the new list will be removed
   # any new entries will be added
@@ -97,7 +100,7 @@ class DynamicPool():
       del self.expires_map[ item ]
 
     for item in set( self.mac_map.values() ) - address_list:
-      for key, value in self.mac_map.iteritems():
+      for key, value in self.mac_map.items():
         if value == item:
           del self.mac_map[ key ]
 

@@ -54,22 +54,28 @@ class Main( Daemon ):
     self.dhcpd.start()
     logging.debug( 'running...' )
     while self.cont:
-      dynamic_pool_list = self.contractor.getDHCPdDynamidPools()
-      static_map = self.contractor.getDHCPdStaticPools()
-      print( '--- dynamic pools ---')
-      print( dynamic_pool_list )
-      print( '--- static mac entries ---' )
-      print( static_map )
-      self.static_pool.update( static_map )
+      try:
+        dynamic_pool_list = self.contractor.getDHCPdDynamidPools()
+        static_map = self.contractor.getDHCPdStaticPools()
+        print( '--- dynamic pools ---')
+        print( dynamic_pool_list )
+        print( '--- static mac entries ---' )
+        print( static_map )
+        self.static_pool.update( static_map )
 
-      logging.debug( 'sleeping for "{0}"...'.format( self.poll_interval ) )
-      for _ in range( 0, self.poll_interval ):
-        if not self.cont:
-          break
-        time.sleep( 1 )  # using time.sleep instead of a event.wait( timeout=? ) to avoid time warping problems
+        logging.debug( 'sleeping for "{0}"...'.format( self.poll_interval ) )
+        for _ in range( 0, self.poll_interval ):
+          if not self.cont:
+            break
+          time.sleep( 1 )  # using time.sleep instead of a event.wait( timeout=? ) to avoid time warping problems
+
+      except Exception:
+        logging.exception( 'Exception occured during main loop' )
+        self.dhcpd.stop()
+        self.cont = False
 
     logging.debug( 'waiting for dhcp server...' )
-    self.dhcpd.wait()
+    self.dhcpd.join()
     logging.debug( 'done.' )
 
   def stop( self ):
