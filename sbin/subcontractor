@@ -4,16 +4,17 @@ import sys
 import logging
 import time
 
-sys.path.insert( 1,  '..')
+sys.path.insert( 1, '..')
 
 from subcontractor.daemon import Daemon
 from subcontractor.contractor import Contractor
 from subcontractor.handler import Handler
 
+
 class Main( Daemon ):
   default_config_file = '/etc/subcontractor.conf'
 
-  def __init__( self, *args,  **kwargs ):
+  def __init__( self, *args, **kwargs ):
     super().__init__( 'subcontractor', *args, **kwargs )
     self.contractor = None
     self.site = None
@@ -28,10 +29,12 @@ class Main( Daemon ):
     proxy = config.get( 'contractor', 'proxy' )
     if not proxy:
       proxy = None
+
     self.contractor = Contractor( self.site, host=host, root_path=root_path, port=port, proxy=proxy )
     item = self.contractor.getSite()
     if item is None:
       raise ValueError( 'site "{0}" does not exist'.format( self.site ) )
+
     logging.info( 'working with site "{0}"({1})'.format( item[ 'description' ], item[ 'name' ] ) )
 
     self.poll_interval = config.getint( 'subcontractor', 'poll_interval' )
@@ -42,7 +45,7 @@ class Main( Daemon ):
       try:
         limit = int( limit )
       except ValueError:
-        logger.error( 'invalid limit "{0}" for module "{1}"'.format( limit, name ) )
+        logging.error( 'invalid limit "{0}" for module "{1}"'.format( limit, name ) )
 
       if limit < 1:
         continue
@@ -62,7 +65,7 @@ class Main( Daemon ):
       for _ in range( 0, self.poll_interval ):
         if not self.cont:
           break
-        time.sleep( 1 ) # using time.sleep instead of a event.wait( timeout=? ) to avoid time warping problems
+        time.sleep( 1 )  # using time.sleep instead of a event.wait( timeout=? ) to avoid time warping problems
 
     logging.info( 'wiating for jobs to finish...' )
     self.handler.wait()
