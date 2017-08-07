@@ -3,6 +3,7 @@ import time
 import threading
 from importlib import import_module
 
+
 class JobWorker( threading.Thread ):
   def __init__( self, contractor, cookie, job_id, function, paramaters, semaphore ):
     super().__init__()
@@ -34,14 +35,15 @@ class JobWorker( threading.Thread ):
       logging.error( 'handler: result from function was not a dict, got "{0}"({1})'.format( str( data )[ 0:50 ], type( data ).__name__ ) )
       self.contractor.jobError( self.job_id, 'result was not a dict, got "{0}"({1})'.format( data, type( data ).__name__ ), self.cookie )
 
-    response = self.contractor.jobResults( self.job_id, data, self.cookie ) # this is after releasing the semaphore so we are not holding things up if it requires retries
+    response = self.contractor.jobResults( self.job_id, data, self.cookie )  # this is after releasing the semaphore so we are not holding things up if it requires retries
     logging.info( 'handler: job "{0}" complete, contractor said "{1}"'.format( self.job_id, response ) )
+
 
 class Handler():
   def __init__( self, contractor ):
     super().__init__()
     self.contractor = contractor
-    self.max_concurent_jobs = 0 # there is not a semaphore to inforce this, this is used to limit the number of jobs being requested
+    self.max_concurent_jobs = 0  # there is not a semaphore to inforce this, this is used to limit the number of jobs being requested
     self.job_delay = 5
     self.job_queue = []
     self.module_map = {}
