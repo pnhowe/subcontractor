@@ -19,6 +19,7 @@ class JobWorker( threading.Thread ):
       logging.debug( 'handler: acquring lock for "{0}"...'.format( self.job_id ) )
       self.semaphore.acquire()
       logging.debug( 'handler: lock acquired for "{0}"...'.format( self.job_id ) )
+      logging.debug( 'handler: starting job "{0}" with "{1}"'.format( self.function, self.paramaters ) )
 
       try:
         data = self.function( self.paramaters )
@@ -35,6 +36,7 @@ class JobWorker( threading.Thread ):
       logging.error( 'handler: result from function was not a dict, got "{0}"({1})'.format( str( data )[ 0:50 ], type( data ).__name__ ) )
       self.contractor.jobError( self.job_id, 'result was not a dict, got "{0}"({1})'.format( data, type( data ).__name__ ), self.cookie )
 
+    logging.debug( 'handler: results of "{0}" with "{1}" is "{2}"'.format( self.function, self.paramaters, data ) )
     response = self.contractor.jobResults( self.job_id, data, self.cookie )  # this is after releasing the semaphore so we are not holding things up if it requires retries
     logging.info( 'handler: job "{0}" complete, contractor said "{1}"'.format( self.job_id, response ) )
 
