@@ -40,9 +40,12 @@ class StaticPool():
   # update everything, if it's not in this list, it will get removed
   def update( self, entry_map ):
     for key, value in entry_map.items():
+      gateway = value.get( 'gateway', 0 )
+      if gateway is None:
+        gateway = 0
       self.mac_map[ key ] = ( ipv4( value.get( 'ip_address', 0 ) ).list(),
                               ipv4( value.get( 'netmask', 0 ) ).list(),
-                              ipv4( value.get( 'gateway', 0 ) ).list(),
+                              ipv4( gateway ).list(),
                               ipv4( value.get( 'dns_server', 0 ) ).list(),
                               strlist( value.get( 'host_name', '' ) ).list(),
                               strlist( value.get( 'domain_name', '' ) ).list(),
