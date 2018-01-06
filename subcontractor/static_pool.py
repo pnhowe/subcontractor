@@ -3,9 +3,10 @@ from pydhcplib.type_strlist import strlist
 
 
 class StaticPool():
-  def __init__( self ):
+  def __init__( self, lease_time ):
     super().__init__()
     self.mac_map = {}
+    self.lease_time = ipv4( lease_time ).list()
 
   def lookup( self, mac, assign ):
     try:
@@ -35,7 +36,8 @@ class StaticPool():
                             ipv4( dns_server ).list(),
                             strlist( host_name ).list(),
                             strlist( domain_name ).list(),
-                            strlist( boot_file ).list() )
+                            strlist( boot_file ).list(),
+                            self.lease_time )
 
   # update everything, if it's not in this list, it will get removed
   def update( self, entry_map ):
@@ -49,7 +51,11 @@ class StaticPool():
                               ipv4( value.get( 'dns_server', 0 ) ).list(),
                               strlist( value.get( 'host_name', '' ) ).list(),
                               strlist( value.get( 'domain_name', '' ) ).list(),
-                              strlist( value.get( 'boot_file', '' ) ).list() )
+                              strlist( value.get( 'boot_file', '' ) ).list(),
+                              self.lease_time )
 
     for item in set( self.mac_map.keys() ) - set( entry_map.keys() ):
       del self.mac_map[ item ]
+
+  def cleanup( self ):
+    pass
