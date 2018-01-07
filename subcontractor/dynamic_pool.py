@@ -22,12 +22,6 @@ class DynamicPool():
     self._update_address_list( address_map.keys() )  # TODO: don't discard the bootfile
 
   def lookup( self, mac, assign ):
-    print( '~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    print( mac, assign )
-    print( self.address_map )
-    print( self.expires_map )
-    print( '~~~~~~~~~~~~~~~~~~~~~~~~~~')
-
     address = None
     self.address_map_lock.acquire()
     try:
@@ -52,12 +46,6 @@ class DynamicPool():
       return None
 
     self.expires_map[ address ] = self.lease_delta + datetime.utcnow()
-
-    print( '~~~~~~~~~~~~~~~~~~~~~~~~~~######')
-    print( mac, assign, address )
-    print( self.address_map )
-    print( self.expires_map )
-    print( '~~~~~~~~~~~~~~~~~~~~~~~~~~######')
 
     host_name = 'dynamic_{0}'.format( address )
     return ( ipv4( address ).list(), self.netmask, self.gateway, self.dns_server, strlist( host_name ).list(), self.domain_name, self.boot_file, self.lease_time )
@@ -122,8 +110,6 @@ class DynamicPool():
       now = datetime.utcnow()
       for address in self.expires_map.keys():
         if self.expires_map[ address ] is not None and self.expires_map[ address ] < now:
-          print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ {0}'.format( address ))
-          print( self.expires_map[ address ], now )
           self.expires_map[ address ] = None
           self.address_map[ address ] = None
 
