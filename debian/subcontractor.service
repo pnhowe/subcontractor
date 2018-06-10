@@ -1,0 +1,12 @@
+[Unit]
+Description=Subcontractor service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDir=/tmp
+ExecStart=/usr/sbin/subcontractor -p /var/run/subcontractor.pid -c /etc/subcontractor.conf
+
+[Install]
+WantedBy=mutli-user.target
+
