@@ -4,8 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDir=/tmp
-ExecStart=/usr/sbin/dhcpd -p /var/run/dhcpd.pid -c /etc/subcontractor.conf
+ExecStart=/usr/sbin/dhcpd -p /var/run/dhcpd.pid -c /etc/subcontractor.conf foreground
 
 [Install]
 WantedBy=mutli-user.target

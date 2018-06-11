@@ -7,7 +7,8 @@ install:
 
 	install -m 755 sbin/* $(DESTDIR)/usr/sbin
 	install -m 644 subcontractor.conf $(DESTDIR)/etc
-	./setup.py install --root $(DESTDIR)
+
+	./setup.py install --root $(DESTDIR) --prefix=/usr
 
 test-requires:
 	python3-pytest python3-pytest-cov python3-pytest-django python3-pytest-mock
@@ -17,6 +18,8 @@ test:
 
 clean:
 	./setup.py clean
+	$(RM) -fr build
+	$(RM) -f dpkg
 
 dpkg-distros:
 	echo xenial
