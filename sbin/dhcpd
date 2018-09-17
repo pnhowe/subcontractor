@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 
-import sys
 import logging
 import time
-
-sys.path.insert( 1, '..')
 
 from subcontractor.daemon import Daemon
 from subcontractor.contractor import Contractor
 from subcontractor.dhcpd import DHCPd
-#from subcontractor.dynamic_pool import DynamicPool
+from subcontractor.dynamic_pool import DynamicPool
 from subcontractor.static_pool import StaticPool
+
+# in seconds
+STATIC_LEASE_TIME = 1800
+DYNAMIC_LEASE_TIME = 300
 
 
 class Main( Daemon ):
@@ -23,19 +24,17 @@ class Main( Daemon ):
     self.cont = True
     self.handler = None
     self.dhcpd = None
-    #self.dynamic_pool = DynamicPool()
-    self.static_pool = StaticPool()
+    self.static_pool = StaticPool( STATIC_LEASE_TIME )
 
   def config( self, config ):
     self.site = config.get( 'subcontractor', 'site' )
     host = config.get( 'contractor', 'host' )
     root_path = config.get( 'contractor', 'root_path' )
-    port = config.get( 'contractor', 'port' )
     proxy = config.get( 'contractor', 'proxy' )
     if not proxy:
       proxy = None
 
-    self.contractor = Contractor( self.site, host=host, root_path=root_path, port=port, proxy=proxy )
+    self.contractor = Contractor( self.site, host=host, root_path=root_path, proxy=proxy )
     item = self.contractor.getSite()
     if item is None:
       raise ValueError( 'site "{0}" does not exist'.format( self.site ) )
@@ -50,18 +49,29 @@ class Main( Daemon ):
   def main( self ):
     logging.debug( 'starting dhcp server...' )
     self.dhcpd = DHCPd( self.listen_interface, self.listen_address, self.tftp_server )
-    self.dhcpd.add_pool( self.static_pool )
+    self.dhcpd.add_pool( self.static_pool, 'static' )
     self.dhcpd.start()
     logging.debug( 'running...' )
     while self.cont:
       try:
+        keep_name_list = []
+
         dynamic_pool_list = self.contractor.getDHCPdDynamidPools()
         static_map = self.contractor.getDHCPdStaticPools()
         print( '--- dynamic pools ---')
         print( dynamic_pool_list )
+        for dynamic_pool in dynamic_pool_list:
+          pool = DynamicPool( dynamic_pool[ 'gateway' ], dynamic_pool[ 'netmask' ], dynamic_pool[ 'dns_server' ], dynamic_pool[ 'domain_name' ], DYNAMIC_LEASE_TIME, dynamic_pool[ 'address_map' ] )
+          self.dhcpd.add_pool( pool, dynamic_pool[ 'name' ] )
+          keep_name_list.append( dynamic_pool[ 'name' ] )
+
         print( '--- static mac entries ---' )
         print( static_map )
         self.static_pool.update( static_map )
+        keep_name_list.append( 'static' )
+
+        self.dhcpd.clean_pool( keep_name_list )
+        self.dhcpd.cleanup()
 
         logging.debug( 'sleeping for "{0}"...'.format( self.poll_interval ) )
         for _ in range( 0, self.poll_interval ):
@@ -82,6 +92,7 @@ class Main( Daemon ):
     self.cont = False
     if self.dhcpd is not None:
       self.dhcpd.stop()
+
 
 if __name__ == '__main__':
   Main().run()

@@ -18,19 +18,19 @@ class DHCPd( DhcpServer, threading.Thread  ):
       raise Exception( 'Interface "{0}" not available'.format( listen_interface ) )
 
     self.cont = True
+    self.pool_location_map = {}
     self.pool_list = []
     self.tftp_server = ipv4( tftp_server ).list()
     self.dhcp_server_ip = ipv4( iface.getAddr( listen_interface ) ).list()
-    self.lease_time = [0, 0, 5, 0]   # set the real value
 
   def setOptions( self, request, reply, item ):
-    address, netmask, gateway, dns_server, host_name, domain_name, boot_file = item
+    address, netmask, gateway, dns_server, host_name, domain_name, boot_file, lease_time = item
 
     parameter_request_list = request.GetOption( 'parameter_request_list' )
     user_class = strlist( request.GetOption( 'user_class' ) ).str()
 
     reply.SetOption( 'server_identifier', self.dhcp_server_ip )
-    reply.SetOption( 'ip_address_lease_time', self.lease_time )
+    reply.SetOption( 'ip_address_lease_time', lease_time )
     reply.SetOption( 'yiaddr', address )
     reply.SetOption( 'subnet_mask', netmask )
     if gateway:
@@ -89,19 +89,31 @@ class DHCPd( DhcpServer, threading.Thread  ):
     self.SendDhcpPacket( request, reply )
 
   def HandleDhcpDecline( self, request ):
-    logging.info( 'DHCPd: Revieved Decline:\n{0}'.format( request ) )
+    logging.info( 'DHCPd: Revieved Decline:\n{0}'.format( request.str() ) )
     mac = hwmac( request.GetHardwareAddress() ).str()
     for pool in self.pool_list:
       pool.decline( mac )
 
   def HandleDhcpRelease( self, request ):
-    logging.info( 'DHCPd: Recieved Release:\n{0}'.format( request ) )
+    logging.info( 'DHCPd: Recieved Release:\n{0}'.format( request.str() ) )
     mac = hwmac( request.GetHardwareAddress() ).str()
     for pool in self.pool_list:
       pool.release( mac )
 
-  def add_pool( self, pool ):
-    self.pool_list.append( pool )
+  def add_pool( self, pool, name ):
+    try:
+      self.pool_list[ self.pool_location_map[ name ] ] = pool
+    except KeyError:
+      self.pool_location_map[ name ] = len( self.pool_list )
+      self.pool_list.append( pool )
+
+  def clean_pool( self, keep_name_list ):
+      # TODO: do me!
+      pass
+
+  def cleanup( self ):
+    for i in range( 0, len( self.pool_list ) ):
+      self.pool_list[ i ].cleanup()
 
   def run( self ):
     while self.cont:

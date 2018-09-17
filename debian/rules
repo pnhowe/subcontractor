@@ -1,0 +1,11 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --with python3 --buildsystem=makefile
+
+override_dh_installinit:
+	dh_installinit --name=subcontractor
+	dh_installinit --name=dhcpd
+
+
+override_dh_auto_test:

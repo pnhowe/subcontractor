@@ -4,11 +4,11 @@ from cinp.client import CInP, NotFound
 
 
 class Contractor():
-  def __init__( self, site, host, root_path, port, proxy ):
+  def __init__( self, site, host, root_path, proxy ):
     super().__init__()
     self.module_list = []
     self.site = '{0}Site/Site:{1}:'.format( root_path, site )
-    self.cinp = CInP( host=host, root_path=root_path, port=port, proxy=proxy )
+    self.cinp = CInP( host=host, root_path=root_path, proxy=proxy )
 
   def setModuleList( self, module_list ):
     self.module_list = module_list
