@@ -26,4 +26,4 @@ setup( name='subcontractor',
        author_email='pnhowe@gmail.com',
        packages=find_packages(),
        cmdclass={ 'build_py': build }
-     )
+       )
