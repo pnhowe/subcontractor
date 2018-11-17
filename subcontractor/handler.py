@@ -37,8 +37,18 @@ class JobWorker( threading.Thread ):
       self.contractor.jobError( self.job_id, 'result was not a dict, got "{0}"({1})'.format( data, type( data ).__name__ ), self.cookie )
 
     logging.debug( 'handler: results of "{0}" with "{1}" is "{2}"'.format( self.function, self.paramaters, data ) )
-    response = self.contractor.jobResults( self.job_id, data, self.cookie )  # this is after releasing the semaphore so we are not holding things up if it requires retries
-    logging.info( 'handler: job "{0}" complete, contractor said "{1}"'.format( self.job_id, response ) )
+    response = 'Error'
+    while response == 'Error':
+      response = self.contractor.jobResults( self.job_id, data, self.cookie )  # this is after releasing the semaphore so we are not holding things up if it requires retries
+      logging.info( 'handler: job "{0}" complete, contractor said "{1}"'.format( self.job_id, response ) )
+      if response == 'Accepted':
+        break
+
+      if response != 'Error':
+        raise Exception( 'Unknown jobResults response "{0}"'.format( response ) )
+
+      logging.debug( 'handler: Contractor said it had an error, sleeping before trying again...' )
+      time.sleep( 60 )
 
 
 class Handler():
