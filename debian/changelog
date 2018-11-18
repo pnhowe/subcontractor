@@ -1,3 +1,11 @@
+subcontractor (0.2-1) xenial; urgency=medium
+
+  * Goes with Contractor 0.2
+  * formatting tweeks
+  * Handle non-Accepted responses when returning results
+
+ -- Peter Howe <pnhowe@gmail.com>  Sat, 17 Nov 2018 21:22:02 -0700
+
 subcontractor (0.1-1) xenial; urgency=medium
 
   * Initial release.
