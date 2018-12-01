@@ -35,11 +35,14 @@ class DHCPd( DhcpServer, threading.Thread  ):
     reply.SetOption( 'subnet_mask', netmask )
     if gateway:
       reply.SetOption( 'router', gateway )
+
     if host_name:
       reply.SetOption( 'host_name', host_name )
+
     if domain_name:
       reply.SetOption( 'domain_name', domain_name )
-      reply.SetOption( 'domain_search', domain_name )
+      reply.SetOption( 'domain_search', [ domain_name ] )
+
     if dns_server:
       reply.SetOption( 'domain_name_server', dns_server )
 
