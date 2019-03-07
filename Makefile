@@ -21,7 +21,7 @@ clean:
 	$(RM) -fr build
 	$(RM) -f dpkg
 	$(RM) -fr htmlcov
-	dh_clean
+	dh_clean || true
 
 dpkg-distros:
 	echo xenial
