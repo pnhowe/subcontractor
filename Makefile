@@ -50,4 +50,4 @@ dpkg:
 dpkg-file:
 	echo $(shell ls ../subcontractor_*.deb):xenial
 
-.PHONY: dpkg-distros dpkg-requires dpkg dpkg-file
+.PHONY:: dpkg-distros dpkg-requires dpkg dpkg-file
