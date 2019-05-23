@@ -1,7 +1,25 @@
 import logging
 import time
 import threading
+import hashlib
+import copy
 from importlib import import_module
+
+
+def _hideify( paramaters ):
+  paramaters = copy.deepcopy( paramaters )
+  try:
+    salt = paramaters[ 'host' ]
+  except KeyError:
+    salt = ''
+
+  for name in ( 'password', 'token' ):
+    try:
+      paramaters[ name ] = hashlib.sha256( ( salt + ':' + paramaters[ name ] ).encode() ).hexdigest()
+    except KeyError:
+      pass
+
+  return paramaters
 
 
 class JobWorker( threading.Thread ):
@@ -19,12 +37,12 @@ class JobWorker( threading.Thread ):
       logging.debug( 'handler: acquring lock for "{0}"...'.format( self.job_id ) )
       self.semaphore.acquire()
       logging.debug( 'handler: lock acquired for "{0}"...'.format( self.job_id ) )
-      logging.debug( 'handler: starting job "{0}" with "{1}"'.format( self.function, self.paramaters ) )
+      logging.debug( 'handler: starting job "{0}" with "{1}"'.format( self.function, _hideify( self.paramaters ) ) )
 
       try:
         data = self.function( self.paramaters )
       except Exception as e:
-        logging.exception( 'handler: Exception with function "{0}" paramaters "{1}"'.format( self.function, self.paramaters ) )
+        logging.exception( 'handler: Exception with function "{0}" paramaters "{1}"'.format( self.function, _hideify( self.paramaters ) ) )
         self.contractor.jobError( self.job_id, 'Unhandled Exception "{0}"({1})'.format( e, type( e ).__name__ ), self.cookie )
         return
 
@@ -36,7 +54,7 @@ class JobWorker( threading.Thread ):
       logging.error( 'handler: result from function was not a dict, got "{0}"({1})'.format( str( data )[ 0:50 ], type( data ).__name__ ) )
       self.contractor.jobError( self.job_id, 'result was not a dict, got "{0}"({1})'.format( data, type( data ).__name__ ), self.cookie )
 
-    logging.debug( 'handler: results of "{0}" with "{1}" is "{2}"'.format( self.function, self.paramaters, data ) )
+    logging.debug( 'handler: results of "{0}" with "{1}" is "{2}"'.format( self.function, _hideify( self.paramaters ), data ) )
     response = 'Error'
     while response == 'Error':
       response = self.contractor.jobResults( self.job_id, data, self.cookie )  # this is after releasing the semaphore so we are not holding things up if it requires retries

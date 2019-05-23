@@ -1,3 +1,16 @@
+subcontractor (0.4-1) xenial; urgency=medium
+
+  * hashing passwords in logging
+  * goes with cntractor 0.4
+
+ -- Peter Howe <pnhowe@gmail.com>  Fri, 26 Apr 2019 11:14:55 -0600
+
+subcontractor (0.3-1) xenial; urgency=medium
+
+  * Goes with Contractor 0.3
+
+ -- Peter Howe <pnhowe@gmail.com>  Wed, 06 Mar 2019 22:05:17 -0700
+
 subcontractor (0.2-1) xenial; urgency=medium
 
   * Goes with Contractor 0.2
