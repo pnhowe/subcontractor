@@ -6,20 +6,31 @@ import copy
 from importlib import import_module
 
 
+def _hideify_internal( salt, value_map ):
+  if isinstance( value_map, list ):
+    iter = enumerate( value_map )
+  elif isinstance( value_map, dict ):
+    iter = value_map.items()
+  else:
+    return value_map
+
+  for name, value in iter:
+    if isinstance( value, ( dict, list ) ):
+      value_map[ name ] = _hideify_internal( salt, copy.copy( value_map[ name ] ) )
+
+    elif isinstance( value, str ) and name in ( 'password', 'token' ):
+      try:
+        value_map[ name ] = salt + ':' + hashlib.sha256( ( salt + ':' + value ).encode() ).hexdigest()
+      except KeyError:
+        pass
+
+  return value_map
+
+
 def _hideify( paramaters ):
-  paramaters = copy.deepcopy( paramaters )
-  try:
-    salt = paramaters[ 'host' ]
-  except KeyError:
-    salt = ''
+  salt = 'salt'  # TODO: get a random something, or does it matter if/how often this changes?
 
-  for name in ( 'password', 'token' ):
-    try:
-      paramaters[ name ] = hashlib.sha256( ( salt + ':' + paramaters[ name ] ).encode() ).hexdigest()
-    except KeyError:
-      pass
-
-  return paramaters
+  return _hideify_internal( salt, copy.copy( paramaters ) )
 
 
 class JobWorker( threading.Thread ):
@@ -110,7 +121,7 @@ class Handler():
       self.max_concurent_jobs = max_concurent_jobs
 
   def addJobs( self, job_list ):
-    logging.info( 'handler: adding more jobs "{0}"....'.format( job_list ) )
+    logging.info( 'handler: adding more jobs "{0}"....'.format( _hideify( job_list ) ) )
 
     for job in job_list:
       try:
