@@ -1,0 +1,79 @@
+import json
+import ssl
+from urllib import request
+
+
+VAULT_TIMEOUT = 20
+
+_handler = None
+
+
+def getCredential( value ):
+  if value is None:
+    return None
+
+  if not value.startswith( '_VAULT_ ' ):
+    return value
+
+  return _handler.get( value[ 8: ] )
+
+
+def setup( config ):
+  global _handler
+
+  vault_type = config.get( 'credentials', 'type' )
+
+  if not vault_type:
+    _handler = NullVault()
+
+  elif vault_type == 'hashicorp':
+    _handler = HashiCorptVault( config.get( 'credentials', 'host' ),
+                                config.get( 'credentials', 'token' ),
+                                config.get( 'credentials', 'proxy' ),
+                                config.getboolean( 'credentials', 'verify_ssl' ) )
+
+  else:
+    raise ValueError( 'Unknown Credentials type "{0}"'.format( vault_type ) )
+
+
+class NullVault():
+  def __init__( self ):
+    pass
+
+  def get( self, name ):
+    return None
+
+
+class HashiCorptVault():
+  def __init__( self, host, token, proxy=None, verify_ssl=True ):
+    super().__init__()
+
+    if host[-1] == '/':
+      raise ValueError( 'VAULT_HOST must not end with "/"' )
+
+    self.host = host
+
+    handler_list = []
+
+    if proxy is not None:
+      handler_list.append( request.ProxyHandler( { 'http': proxy, 'https': proxy } ) )
+    else:
+      handler_list.append( request.ProxyHandler( {} ) )
+
+    if not verify_ssl:
+      handler_list.append( request.HTTPSHandler( context=ssl._create_unverified_context() ) )
+
+    self.opener = request.build_opener( *handler_list )
+
+    self.opener.addheaders = [
+        ( 'X-Vault-Token', token ),
+    ]
+
+  def get( self, url ):
+    path, name = url.split( '#' )
+    req = request.Request( '{0}{1}'.format( path ), method='GET' )
+    resp = self.opener( req, timeout=VAULT_TIMEOUT )
+
+    data = json.loads( resp )[ 'data' ]
+
+    return data.get( name, None )

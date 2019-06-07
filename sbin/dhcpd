@@ -58,15 +58,11 @@ class Main( Daemon ):
 
         dynamic_pool_list = self.contractor.getDHCPdDynamidPools()
         static_map = self.contractor.getDHCPdStaticPools()
-        print( '--- dynamic pools ---')
-        print( dynamic_pool_list )
         for dynamic_pool in dynamic_pool_list:
           pool = DynamicPool( dynamic_pool[ 'gateway' ], dynamic_pool[ 'netmask' ], dynamic_pool[ 'dns_server' ], dynamic_pool[ 'domain_name' ], DYNAMIC_LEASE_TIME, dynamic_pool[ 'address_map' ] )
           self.dhcpd.add_pool( pool, dynamic_pool[ 'name' ] )
           keep_name_list.append( dynamic_pool[ 'name' ] )
 
-        print( '--- static mac entries ---' )
-        print( static_map )
         self.static_pool.update( static_map )
         keep_name_list.append( 'static' )
 

@@ -18,7 +18,7 @@ def _hideify_internal( salt, value_map ):
     if isinstance( value, ( dict, list ) ):
       value_map[ name ] = _hideify_internal( salt, copy.copy( value_map[ name ] ) )
 
-    elif isinstance( value, str ) and name in ( 'password', 'token' ):
+    elif isinstance( value, str ) and name in ( 'password', 'token' ) and not value.startswith( '_VAULT_ ' ):
       try:
         value_map[ name ] = salt + ':' + hashlib.sha256( ( salt + ':' + value ).encode() ).hexdigest()
       except KeyError:

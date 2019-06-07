@@ -6,6 +6,7 @@ import time
 from subcontractor.daemon import Daemon
 from subcontractor.contractor import Contractor
 from subcontractor.handler import Handler
+from subcontractor.credentials import setup
 
 
 class Main( Daemon ):
@@ -25,6 +26,8 @@ class Main( Daemon ):
     proxy = config.get( 'contractor', 'proxy' )
     if not proxy:
       proxy = None
+
+    setup( config )
 
     self.contractor = Contractor( self.site, host=host, root_path=root_path, proxy=proxy )
     item = self.contractor.getSite()
