@@ -16,7 +16,7 @@ version:
 	echo $(VERSION)
 
 clean:
-	./setup.py clean
+	./setup.py clean || true
 	$(RM) -fr build
 	$(RM) -f dpkg
 	$(RM) -fr htmlcov
@@ -30,7 +30,7 @@ test-distros:
 	echo ubuntu-xenial
 
 test-requires:
-	python3-pytest python3-pytest-cov python3-pytest-django python3-pytest-mock
+	echo python3-pytest python3-pytest-cov python3-pytest-django python3-pytest-mock
 
 test:
 	py.test-3 -x --cov=subcontractor --cov-report html --cov-report term -vv subcontractor
