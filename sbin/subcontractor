@@ -23,7 +23,7 @@ class Main( Daemon ):
     self.site = config.get( 'subcontractor', 'site' )
     host = config.get( 'contractor', 'host' )
     root_path = config.get( 'contractor', 'root_path' )
-    proxy = config.get( 'contractor', 'proxy' )
+    proxy = config.get( 'contractor', 'proxy', fallback=None )
     if not proxy:
       proxy = None
 

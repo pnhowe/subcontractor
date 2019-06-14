@@ -8,14 +8,11 @@ VAULT_TIMEOUT = 20
 _handler = None
 
 
-def getCredential( value ):
+def getCredentials( value ):
   if value is None:
     return None
 
-  if not value.startswith( '_VAULT_ ' ):
-    return value
-
-  return _handler.get( value[ 8: ] )
+  return _handler.get( value )
 
 
 def setup( config ):
@@ -29,8 +26,8 @@ def setup( config ):
   elif vault_type == 'hashicorp':
     _handler = HashiCorptVault( config.get( 'credentials', 'host' ),
                                 config.get( 'credentials', 'token' ),
-                                config.get( 'credentials', 'proxy' ),
-                                config.getboolean( 'credentials', 'verify_ssl' ) )
+                                config.get( 'credentials', 'proxy', fallback=None ),
+                                config.getboolean( 'credentials', 'verify_ssl', fallback=True ) )
 
   else:
     raise ValueError( 'Unknown Credentials type "{0}"'.format( vault_type ) )
@@ -70,10 +67,7 @@ class HashiCorptVault():
     ]
 
   def get( self, url ):
-    path, name = url.split( '#' )
-    req = request.Request( '{0}{1}'.format( path ), method='GET' )
-    resp = self.opener( req, timeout=VAULT_TIMEOUT )
-
-    data = json.loads( resp )[ 'data' ]
-
-    return data.get( name, None )
+    req = request.Request( '{0}{1}'.format( self.host, url ), method='GET' )
+    resp = self.opener.open( req, timeout=VAULT_TIMEOUT )
+    # TODO: catch 404, 403, etc
+    return json.loads( resp.read().decode() )[ 'data' ][ 'data' ]

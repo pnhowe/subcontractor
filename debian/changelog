@@ -1,3 +1,9 @@
+subcontractor (0.5-1) xenial; urgency=medium
+
+  * Support for retreiving credentials from a Vault
+
+ -- Peter Howe <pnhowe@gmail.com>  Fri, 14 Jun 2019 09:52:34 -0600
+
 subcontractor (0.4-1) xenial; urgency=medium
 
   * hashing passwords in logging
