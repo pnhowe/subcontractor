@@ -18,8 +18,8 @@ class DHCPd( DhcpServer, threading.Thread  ):
       raise Exception( 'Interface "{0}" not available'.format( listen_interface ) )
 
     self.cont = True
-    self.pool_location_map = {}
-    self.pool_list = []
+    self.pool_map = {}
+    self.pool_order = []
     self.tftp_server = ipv4( tftp_server ).list()
     self.dhcp_server_ip = ipv4( iface.getAddr( listen_interface ) ).list()
 
@@ -54,69 +54,83 @@ class DHCPd( DhcpServer, threading.Thread  ):
       reply.SetOption( 'file', boot_file + [ 0 ] * ( 128 - len( boot_file  ) ) )
 
   def HandleDhcpDiscover( self, request ):
-    logging.info( 'DHCPd: Recieved Discover:\n{0}'.format( request.str() ) )
+    logging.debug( 'DHCPd: Recieved Discover:\n{0}'.format( request.str() ) )
     mac = hwmac( request.GetHardwareAddress() ).str()
-    for pool in self.pool_list:
-      item = pool.lookup( mac, True )
+    logging.info( 'DHCPd: Recieved Discover from "{0}"'.format( mac ) )
+
+    for name in self.pool_order:
+      item = self.pool_map[ name ].lookup( mac, True )
       if item is not None:
         break
 
     if item is None:
-      logging.info( 'DHCPd: mac "{0}" does not have an entry, ignorning.'.format( mac ) )
+      logging.warning( 'DHCPd: mac "{0}" does not have an entry, ignorning.'.format( mac ) )
       return
 
     reply = DhcpPacket()
     reply.CreateDhcpOfferPacketFrom( request )
     self.setOptions( request, reply, item )
 
-    logging.info( 'DHCPd: Sending Offer:\n{0}'.format( reply.str() ) )
+    logging.info( 'DHCPd: Sending Offer to "{0}"'.format( mac ) )
+    logging.debug( 'DHCPd: Sending Offer:\n{0}'.format( reply.str() ) )
     self.SendDhcpPacket( request, reply )
 
   def HandleDhcpRequest( self, request ):
-    logging.info( 'DHCPd: Received Request:\n{0}'.format( request.str() ) )
+    logging.debug( 'DHCPd: Received Request:\n{0}'.format( request.str() ) )
     mac = hwmac( request.GetHardwareAddress() ).str()
-    for pool in self.pool_list:
-      item = pool.lookup( mac, False )
+    logging.info( 'DHCPd: Recieved Request from "{0}"'.format( mac ) )
+
+    for name in self.pool_order:
+      item = self.pool_map[ name ].lookup( mac, True )
       if item is not None:
         break
 
     if item is None:
-      logging.info( 'DHCPd: mac "{0}" does not have an entry, ignorning.'.format( mac ) )
+      logging.warning( 'DHCPd: mac "{0}" does not have an entry, ignorning.'.format( mac ) )
       return
 
     reply = DhcpPacket()
     reply.CreateDhcpAckPacketFrom( request )
     self.setOptions( request, reply, item )
 
-    logging.info( 'DHCPd: Sending Ack:\n{0}'.format( reply.str() ) )
+    logging.info( 'DHCPd: Sending Ack to "{0}"'.format( mac ) )
+    logging.debug( 'DHCPd: Sending Ack:\n{0}'.format( reply.str() ) )
     self.SendDhcpPacket( request, reply )
 
   def HandleDhcpDecline( self, request ):
-    logging.info( 'DHCPd: Revieved Decline:\n{0}'.format( request.str() ) )
+    logging.debug( 'DHCPd: Revieved Decline:\n{0}'.format( request.str() ) )
     mac = hwmac( request.GetHardwareAddress() ).str()
-    for pool in self.pool_list:
+    logging.info( 'DHCPd: Recieved Decline from "{0}"'.format( mac ) )
+
+    for pool in self.pool_map.values():
       pool.decline( mac )
 
   def HandleDhcpRelease( self, request ):
-    logging.info( 'DHCPd: Recieved Release:\n{0}'.format( request.str() ) )
+    logging.debug( 'DHCPd: Recieved Release:\n{0}'.format( request.str() ) )
     mac = hwmac( request.GetHardwareAddress() ).str()
-    for pool in self.pool_list:
+    logging.info( 'DHCPd: Recieved Release from "{0}"'.format( mac ) )
+
+    for pool in self.pool_map.values():
       pool.release( mac )
 
-  def add_pool( self, pool, name ):
-    try:
-      self.pool_list[ self.pool_location_map[ name ] ] = pool
-    except KeyError:
-      self.pool_location_map[ name ] = len( self.pool_list )
-      self.pool_list.append( pool )
+  @property
+  def pool_names( self ):
+    return self.pool_map.keys()
 
-  def clean_pool( self, keep_name_list ):
-      # TODO: do me!
-      pass
+  def add_pool( self, pool, name ):
+    self.pool_map[ name ] = pool
+    self.pool_order.append( name )
+
+  def del_pool( self, name ):
+    del self.pool_order[ self.pool_order.index( name ) ]
+    del self.pool_map[ name ]
+
+  def get_pool( self, name ):
+    return self.pool_map[ name ]
 
   def cleanup( self ):
-    for i in range( 0, len( self.pool_list ) ):
-      self.pool_list[ i ].cleanup()
+    for pool in self.pool_map.values():
+      pool.cleanup()
 
   def run( self ):
     while self.cont:
@@ -124,3 +138,10 @@ class DHCPd( DhcpServer, threading.Thread  ):
 
   def stop( self ):
     self.cont = False
+
+  def summary( self ):
+    result = {}
+    for name, pool in self.pool_map.items():
+      result[ name ] = pool.summary()
+
+    return result

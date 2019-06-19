@@ -14,7 +14,7 @@ STATIC_LEASE_TIME = 1800
 DYNAMIC_LEASE_TIME = 300
 
 
-class Main( Daemon ):
+class Main( Daemon ):  # TODO: cache to local cache file
   default_config_file = '/etc/subcontractor.conf'
 
   def __init__( self, *args, **kwargs ):
@@ -47,27 +47,35 @@ class Main( Daemon ):
     self.tftp_server = config.get( 'dhcpd', 'tftp_server' )
 
   def main( self ):
-    logging.debug( 'starting dhcp server...' )
+    logging.info( 'starting dhcp server...' )
     self.dhcpd = DHCPd( self.listen_interface, self.listen_address, self.tftp_server )
-    self.dhcpd.add_pool( self.static_pool, 'static' )
+    self.dhcpd.add_pool( self.static_pool, '__static__' )  # static pools need to be added first so they are searched first
     self.dhcpd.start()
-    logging.debug( 'running...' )
+    logging.info( 'running...' )
     while self.cont:
       try:
-        keep_name_list = []
-
         dynamic_pool_list = self.contractor.getDHCPdDynamidPools()
-        static_map = self.contractor.getDHCPdStaticPools()
+        pool_names = [ '__static__' ]
+
         for dynamic_pool in dynamic_pool_list:
-          pool = DynamicPool( dynamic_pool[ 'gateway' ], dynamic_pool[ 'netmask' ], dynamic_pool[ 'dns_server' ], dynamic_pool[ 'domain_name' ], DYNAMIC_LEASE_TIME, dynamic_pool[ 'address_map' ] )
-          self.dhcpd.add_pool( pool, dynamic_pool[ 'name' ] )
-          keep_name_list.append( dynamic_pool[ 'name' ] )
+          name = dynamic_pool[ 'name' ]
+          pool_names.append( name )
+          if name not in self.dhcpd.pool_names:
+            pool = DynamicPool( DYNAMIC_LEASE_TIME )
+            pool.update_paramaters( dynamic_pool[ 'gateway' ], dynamic_pool[ 'netmask' ], dynamic_pool[ 'dns_server' ], dynamic_pool[ 'domain_name' ], dynamic_pool[ 'address_map' ] )
+            self.dhcpd.add_pool( pool, name )
 
-        self.static_pool.update( static_map )
-        keep_name_list.append( 'static' )
+          else:
+            self.dhcpd.get_pool( name ).update_paramaters( dynamic_pool[ 'gateway' ], dynamic_pool[ 'netmask' ], dynamic_pool[ 'dns_server' ], dynamic_pool[ 'domain_name' ], dynamic_pool[ 'address_map' ] )
 
-        self.dhcpd.clean_pool( keep_name_list )
+        self.static_pool.update( self.contractor.getDHCPdStaticPools() )
+
+        for name in set( self.dhcpd.pool_names ) - set( pool_names ):
+          self.dhcpd.del_pool( name )
+
         self.dhcpd.cleanup()
+
+        logging.info( 'summary: {0}'.format( self.dhcpd.summary() ) )
 
         logging.debug( 'sleeping for "{0}"...'.format( self.poll_interval ) )
         for _ in range( 0, self.poll_interval ):
@@ -80,11 +88,12 @@ class Main( Daemon ):
         self.dhcpd.stop()
         self.cont = False
 
-    logging.debug( 'waiting for dhcp server...' )
+    logging.info( 'waiting for dhcp server...' )
     self.dhcpd.join()
-    logging.debug( 'done.' )
+    logging.info( 'done.' )
 
   def stop( self ):
+    logging.info( 'got stop signal' )
     self.cont = False
     if self.dhcpd is not None:
       self.dhcpd.stop()

@@ -59,3 +59,10 @@ class StaticPool():
 
   def cleanup( self ):
     pass
+
+  def summary( self ):
+    result = {}
+    for mac, details in self.mac_map.items():
+      result[ mac ] = ipv4( details[ 0 ] ).str()
+
+    return result

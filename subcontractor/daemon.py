@@ -29,7 +29,8 @@ class Daemon():
     parser = argparse.ArgumentParser( description=self.name )
     parser.add_argument( '-c', '--config', help='location of config file', default=self.default_config_file )
     parser.add_argument( '-p', '--pid-file', help='location of the pid file', default='/var/run/{0}.pid'.format( self.name ) )
-    parser.add_argument( '-d', '--debug', help='set logging level to debug', action='store_true' )
+    parser.add_argument( '-i', '--info', help='set logging level to info', action='store_true' )
+    parser.add_argument( '-d', '--debug', help='set logging level to debug, takes presidence over --info', action='store_true' )
     parser.add_argument( '-u', '--user', help='user to run as, if not specified the process continues to run as the user that started it, only applys to backgrang/foreground' )
     parser.add_argument( 'action', help='action to take. background: start and daemonize, foreground: start output to console', choices=( 'background', 'foreground', 'stop', 'status' ), default=None )
 
@@ -44,15 +45,18 @@ class Daemon():
     logging.basicConfig()
     logger = logging.getLogger()
 
-    if args.action == 'background':  # has to happen before we start loggin
+    if args.action == 'background':  # has to happen before we start logging
       logger.handlers = []
       handler = SysLogHandler( address='/dev/log', facility=SysLogHandler.LOG_DAEMON )
       handler.setFormatter( logging.Formatter( fmt='{0} [%(process)d]: %(message)s'.format( self.name ) ) )
       logger.addHandler( handler )
-      logger.setLevel( logging.INFO )
 
     if args.debug:
       logger.setLevel( logging.DEBUG )
+    elif args.info:
+      logger.setLevel( logging.INFO )
+    else:
+      logger.setLevel( logging.WARNING )
 
     cur_pid = self._read_pid_file()
     if args.action == 'status':
@@ -210,7 +214,7 @@ class Daemon():
       logging.error( 'daemon: invalid pid file' )
       return None
     except FileNotFoundError:
-      logging.info( 'daemon: pid file not found' )
+      logging.debug( 'daemon: pid file not found' )
       return None
 
   def _delete_pid_file( self ):

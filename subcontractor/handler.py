@@ -18,7 +18,7 @@ def _hideify_internal( salt, value_map ):
     if isinstance( value, ( dict, list ) ):
       value_map[ name ] = _hideify_internal( salt, copy.copy( value_map[ name ] ) )
 
-    elif isinstance( value, str ) and name in ( 'password', 'token' ):
+    elif isinstance( value, str ) and name in ( 'password', 'token', 'secret' ):
       try:
         value_map[ name ] = salt + ':' + hashlib.sha256( ( salt + ':' + value ).encode() ).hexdigest()
       except KeyError:
@@ -121,7 +121,7 @@ class Handler():
       self.max_concurent_jobs = max_concurent_jobs
 
   def addJobs( self, job_list ):
-    logging.info( 'handler: adding more jobs "{0}"....'.format( _hideify( job_list ) ) )
+    logging.debug( 'handler: adding more jobs "{0}"....'.format( _hideify( job_list ) ) )
 
     for job in job_list:
       try:
