@@ -1,5 +1,6 @@
 import logging
 import threading
+import pickle
 
 from pydhcplib.dhcp_network import DhcpServer
 from pydhcplib.dhcp_constants import DhcpOptions
@@ -131,6 +132,26 @@ class DHCPd( DhcpServer, threading.Thread  ):
   def cleanup( self ):
     for pool in self.pool_map.values():
       pool.cleanup()
+
+  def save_cache( self, filepath ):
+    cache = {}
+    for name, pool in self.pool_map.items():
+      cache[ name ] = pool.dump_cache()
+
+    fp = open( filepath, 'wb' )
+    pickle.dump( cache, fp )
+    fp.close()
+
+  def load_cache( self, filepath ):
+    fp = open( filepath, 'rb' )
+    cache = pickle.load( fp )
+    fp.close()
+
+    for name in cache:
+      try:
+        self.pool_map[ name ].load_cache( cache[ name ] )
+      except KeyError:
+        pass
 
   def run( self ):
     while self.cont:

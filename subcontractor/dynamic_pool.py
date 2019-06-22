@@ -129,3 +129,12 @@ class DynamicPool():
       result[ address ] = mac
 
     return result
+
+  def dump_cache( self ):
+    return ( self.address_map, self.expires_map )
+
+  def load_cache( self, cache ):
+    if self.address_map:
+      raise Exception( 'allready loaded, can not restore cache' )
+
+    ( self.address_map, self.expires_map ) = cache

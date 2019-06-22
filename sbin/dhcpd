@@ -2,6 +2,7 @@
 
 import logging
 import time
+import os
 
 from subcontractor.daemon import Daemon
 from subcontractor.contractor import Contractor
@@ -19,6 +20,7 @@ class Main( Daemon ):  # TODO: cache to local cache file
 
   def __init__( self, *args, **kwargs ):
     super().__init__( 'subcontractor', *args, **kwargs )
+    self.cache_file = None
     self.contractor = None
     self.site = None
     self.cont = True
@@ -27,6 +29,7 @@ class Main( Daemon ):  # TODO: cache to local cache file
     self.static_pool = StaticPool( STATIC_LEASE_TIME )
 
   def config( self, config ):
+    self.cache_file = config.get( 'dhcpd', 'cache_file' )
     self.site = config.get( 'subcontractor', 'site' )
     host = config.get( 'contractor', 'host' )
     root_path = config.get( 'contractor', 'root_path' )
@@ -49,6 +52,8 @@ class Main( Daemon ):  # TODO: cache to local cache file
   def main( self ):
     logging.info( 'starting dhcp server...' )
     self.dhcpd = DHCPd( self.listen_interface, self.listen_address, self.tftp_server )
+    if os.path.isfile( self.cache_file ):
+      self.dhcpd.load_cache( self.cache_file )
     self.dhcpd.add_pool( self.static_pool, '__static__' )  # static pools need to be added first so they are searched first
     self.dhcpd.start()
     logging.info( 'running...' )
@@ -76,6 +81,7 @@ class Main( Daemon ):  # TODO: cache to local cache file
         self.dhcpd.cleanup()
 
         logging.info( 'summary: {0}'.format( self.dhcpd.summary() ) )
+        self.dhcpd.save_cache( self.cache_file )
 
         logging.debug( 'sleeping for "{0}"...'.format( self.poll_interval ) )
         for _ in range( 0, self.poll_interval ):
@@ -88,6 +94,7 @@ class Main( Daemon ):  # TODO: cache to local cache file
         self.dhcpd.stop()
         self.cont = False
 
+    self.dhcpd.save_cache( self.cache_file )
     logging.info( 'waiting for dhcp server...' )
     self.dhcpd.join()
     logging.info( 'done.' )
