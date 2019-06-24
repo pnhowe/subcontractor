@@ -1,3 +1,10 @@
+subcontractor (0.6-1) xenial; urgency=medium
+
+  * DHCPd now caches state to local cache
+  * dhcpLeases cache viewer
+
+ -- Peter Howe <pnhowe@gmail.com>  Mon, 24 Jun 2019 07:44:08 -0600
+
 subcontractor (0.5-1) xenial; urgency=medium
 
   * Support for retreiving credentials from a Vault
