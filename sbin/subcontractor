@@ -6,6 +6,7 @@ import time
 from subcontractor.daemon import Daemon
 from subcontractor.contractor import Contractor
 from subcontractor.handler import Handler
+from subcontractor.credentials import setup
 
 
 class Main( Daemon ):
@@ -22,9 +23,11 @@ class Main( Daemon ):
     self.site = config.get( 'subcontractor', 'site' )
     host = config.get( 'contractor', 'host' )
     root_path = config.get( 'contractor', 'root_path' )
-    proxy = config.get( 'contractor', 'proxy' )
+    proxy = config.get( 'contractor', 'proxy', fallback=None )
     if not proxy:
       proxy = None
+
+    setup( config )
 
     self.contractor = Contractor( self.site, host=host, root_path=root_path, proxy=proxy )
     item = self.contractor.getSite()
@@ -53,7 +56,7 @@ class Main( Daemon ):
     self.contractor.setModuleList( self.handler.module_list )
 
   def main( self ):
-    logging.debug( 'running...' )
+    logging.info( 'running...' )
     while self.cont:
       self.handler.logStatus()
       self.handler.addJobs( self.contractor.getJobs( min( self.handler.empty_slots, self.max_job_request_size ) ) )
@@ -65,9 +68,10 @@ class Main( Daemon ):
 
     logging.info( 'wiating for jobs to finish...' )
     self.handler.wait()
-    logging.debug( 'done.' )
+    logging.info( 'done.' )
 
   def stop( self ):
+    logging.info( 'got stop signal' )
     self.cont = False
 
 if __name__ == '__main__':

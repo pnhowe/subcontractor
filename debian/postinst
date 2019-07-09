@@ -20,6 +20,7 @@ set -e
 
 case "$1" in
     configure)
+        rm /var/run/dhcpd.cache
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

@@ -59,3 +59,19 @@ class StaticPool():
 
   def cleanup( self ):
     pass
+
+  def summary( self ):
+    result = {}
+    for mac, details in self.mac_map.items():
+      result[ mac ] = ipv4( details[ 0 ] ).str()
+
+    return result
+
+  def dump_cache( self ):
+    return self.mac_map
+
+  def load_cache( self, cache ):
+    if self.mac_map:
+      raise Exception( 'allready loaded, can not restore cache' )
+
+    self.mac_map = cache

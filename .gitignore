@@ -6,3 +6,5 @@ htmlcov
 .coverage
 .coveragerc
 .cache
+
+subcontractor.egg-info

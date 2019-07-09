@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+
+import sys
+import argparse
+import configparser
+import pickle
+from pydhcplib.type_ipv4 import ipv4
+
+
+default_config_file = '/etc/subcontractor.conf'
+
+parser = argparse.ArgumentParser( description='dhcpLeases' )
+parser.add_argument( '-c', '--config', help='location of config file', default=default_config_file )
+
+args = parser.parse_args()
+
+config = configparser.ConfigParser()
+try:
+  if not config.read( args.config ):
+    print( 'error reading configfile: "{0}"'.format( args.config ) )
+    sys.exit( 1 )
+except Exception as e:
+  print( 'daemon: error parsing configfile: "{0}"'.format( e ) )
+  sys.exit( 1 )
+
+cache_file = config.get( 'dhcpd', 'cache_file' )
+
+fp = open( cache_file, 'rb' )
+cache = pickle.load( fp )
+fp.close()
+
+print( '-- Static Entries --' )
+for mac, entry in cache[ '__static__' ].items():
+  print( '{0} - {1}'.format( mac, ipv4( entry( [ 0 ] ).str() ) ) )
+
+print()
+print( '-- Dynamic Entries --' )
+for name, pool in cache.items():
+  if name == '__static__':
+    continue
+
+  for address, mac in pool[ 0 ].items():
+    print( '{0} - {1}'.format( mac, address ) )

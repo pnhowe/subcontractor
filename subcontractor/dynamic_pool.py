@@ -6,18 +6,22 @@ from pydhcplib.type_strlist import strlist
 
 
 class DynamicPool():
-  def __init__( self, gateway, netmask, dns_server, domain_name, lease_time, address_map ):  # lease_time in seconds
+  def __init__( self, lease_time ):  # lease_time in seconds
     super().__init__()
+
+    self.address_map = {}  # key is address, value is mac
+    self.expires_map = {}  # key is address, value is expires datetime
+
+    self.lease_time = ipv4( lease_time ).list()
+    self.lease_delta = timedelta( seconds=lease_time )
+    self.address_map_lock = Semaphore()
+
+  def update_paramaters( self, gateway, netmask, dns_server, domain_name, address_map ):
     self.netmask = ipv4( netmask ).list()
     self.gateway = ipv4( gateway ).list()
     self.domain_name = strlist( domain_name ).list()
     self.boot_file = strlist( '' ).list()
     self.dns_server = ipv4( dns_server ).list()
-    self.address_map = {}  # key is address, value is mac
-    self.expires_map = {}  # key is address, value is expires datetime
-    self.lease_time = ipv4( lease_time ).list()
-    self.lease_delta = timedelta( seconds=lease_time )
-    self.address_map_lock = Semaphore()
 
     self._update_address_list( address_map.keys() )  # TODO: don't discard the bootfile
 
@@ -34,10 +38,8 @@ class DynamicPool():
         for key, value in self.address_map.items():
           if value is None:
             address = key
+            self.address_map[ address ] = mac
             break
-
-        if address is not None:
-          self.address_map[ address ] = mac
 
     finally:
       self.address_map_lock.release()
@@ -78,24 +80,29 @@ class DynamicPool():
 
   # Update the addresslist to the specified list, anything not in the new list will be removed
   # any new entries will be added
-  def _update_address_list( self, address_list ):  # only call during constructor, otherwise need some locking
-    add_list = set( address_list ) - set( self.address_map.keys() )
-    remove_list = set( self.address_map.keys() ) - set( address_list )
+  def _update_address_list( self, address_list ):
+    self.address_map_lock.acquire()
+    try:
+      add_list = set( address_list ) - set( self.address_map.keys() )
+      remove_list = set( self.address_map.keys() ) - set( address_list )
 
-    for address in add_list:
-      self.address_map[ address ] = None
-      self.expires_map[ address ] = None
+      for address in add_list:
+        self.address_map[ address ] = None
+        self.expires_map[ address ] = None
 
-    for address in remove_list:
-      try:
-        del self.expires_map[ address ]
-      except KeyError:
-        pass
+      for address in remove_list:
+        try:
+          del self.expires_map[ address ]
+        except KeyError:
+          pass
 
-      try:
-        del self.address_map[ address ]
-      except KeyError:
-        pass
+        try:
+          del self.address_map[ address ]
+        except KeyError:
+          pass
+
+    finally:
+      self.address_map_lock.release()
 
   def cleanup( self ):
     self.address_map_lock.acquire()
@@ -115,3 +122,19 @@ class DynamicPool():
 
     finally:
       self.address_map_lock.release()
+
+  def summary( self ):
+    result = {}
+    for address, mac in self.address_map.items():
+      result[ address ] = mac
+
+    return result
+
+  def dump_cache( self ):
+    return ( self.address_map, self.expires_map )
+
+  def load_cache( self, cache ):
+    if self.address_map:
+      raise Exception( 'allready loaded, can not restore cache' )
+
+    ( self.address_map, self.expires_map ) = cache
