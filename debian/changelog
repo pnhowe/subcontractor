@@ -1,4 +1,4 @@
-subcontractor (0.6.1-1) xenial; urgency=medium
+subcontractor (0.6.2-1) xenial; urgency=medium
 
   * DHCPd now caches state to local cache
   * dhcpLeases cache viewer
