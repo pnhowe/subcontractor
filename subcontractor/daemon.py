@@ -114,7 +114,7 @@ class Daemon():
     signal.signal( signal.SIGTERM, self._sigHandlerStop )
 
     logging.debug( 'daemon: loading config from "{0}"...'.format( args.config ) )
-    config = configparser.ConfigParser()
+    config = configparser.ConfigParser( interpolation=None )
     try:
       if not config.read( args.config ):
         logging.error( 'daemon: error reading configfile: "{0}"'.format( args.config ) )
