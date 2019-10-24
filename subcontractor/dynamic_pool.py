@@ -11,6 +11,7 @@ class DynamicPool():
 
     self.address_map = {}  # key is address, value is mac
     self.expires_map = {}  # key is address, value is expires datetime
+    self.boot_file_map = {}  # key is address, value is boot file
 
     self.lease_time = ipv4( lease_time ).list()
     self.lease_delta = timedelta( seconds=lease_time )
@@ -18,12 +19,11 @@ class DynamicPool():
 
   def update_paramaters( self, gateway, netmask, dns_server, domain_name, address_map ):
     self.netmask = ipv4( netmask ).list()
-    self.gateway = ipv4( gateway ).list()
+    self.gateway = ipv4( gateway ).list() if gateway is not None else None
     self.domain_name = strlist( domain_name ).list()
-    self.boot_file = strlist( '' ).list()
     self.dns_server = ipv4( dns_server ).list()
 
-    self._update_address_list( address_map.keys() )  # TODO: don't discard the bootfile
+    self._update_address_list( address_map )
 
   def lookup( self, mac, assign ):
     address = None
@@ -50,7 +50,7 @@ class DynamicPool():
     self.expires_map[ address ] = self.lease_delta + datetime.utcnow()
 
     host_name = 'dynamic_{0}'.format( address )
-    return ( ipv4( address ).list(), self.netmask, self.gateway, self.dns_server, strlist( host_name ).list(), self.domain_name, self.boot_file, self.lease_time )
+    return ( ipv4( address ).list(), self.netmask, self.gateway, self.dns_server, strlist( host_name ).list(), self.domain_name, self.boot_file_map[ address ], self.lease_time )
 
   def release( self, mac ):
     address = None
@@ -89,6 +89,7 @@ class DynamicPool():
       for address in add_list:
         self.address_map[ address ] = None
         self.expires_map[ address ] = None
+        self.boot_file_map[ address ] = None
 
       for address in remove_list:
         try:
@@ -100,6 +101,14 @@ class DynamicPool():
           del self.address_map[ address ]
         except KeyError:
           pass
+
+        try:
+          del self.boot_file_map[ address ]
+        except KeyError:
+          pass
+
+      for address, boot_file in address_list.items():
+        self.boot_file_map[ address ] = strlist( boot_file ).list()
 
     finally:
       self.address_map_lock.release()
@@ -131,10 +140,10 @@ class DynamicPool():
     return result
 
   def dump_cache( self ):
-    return ( self.address_map, self.expires_map )
+    return ( self.address_map, self.expires_map, self.boot_file_map )
 
   def load_cache( self, cache ):
     if self.address_map:
       raise Exception( 'allready loaded, can not restore cache' )
 
-    ( self.address_map, self.expires_map ) = cache
+    ( self.address_map, self.expires_map, self.boot_file_map ) = cache

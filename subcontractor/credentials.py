@@ -18,9 +18,9 @@ def getCredentials( value ):
 def setup( config ):
   global _handler
 
-  vault_type = config.get( 'credentials', 'type' )
+  vault_type = config.get( 'credentials', 'type', fallback=None )
 
-  if not vault_type:
+  if not vault_type:  # could be None or ''
     _handler = NullVault()
 
   elif vault_type == 'hashicorp':

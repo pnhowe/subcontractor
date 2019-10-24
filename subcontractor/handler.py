@@ -59,7 +59,7 @@ class JobWorker( threading.Thread ):
 
     finally:
       self.semaphore.release()
-      logging.debug( 'handler: log for "{0}" released'.format( self.job_id ) )
+      logging.debug( 'handler: lock for "{0}" released'.format( self.job_id ) )
 
     if not isinstance( data, dict ):
       logging.error( 'handler: result from function was not a dict, got "{0}"({1})'.format( str( data )[ 0:50 ], type( data ).__name__ ) )
