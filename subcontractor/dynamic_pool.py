@@ -108,7 +108,8 @@ class DynamicPool():
           pass
 
       for address, boot_file in address_list.items():
-        self.boot_file_map[ address ] = strlist( boot_file ).list()
+        if boot_file is not None:
+          self.boot_file_map[ address ] = strlist( boot_file ).list()
 
     finally:
       self.address_map_lock.release()
