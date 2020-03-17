@@ -1,3 +1,11 @@
+subcontractor (0.8.0-1) bionic; urgency=medium
+
+  * Mmoved to Bionic
+  * Goes with contractor 0.8.0
+  * Fixes
+
+ -- Peter Howe <pnhowe@gmail.com>  Mon, 16 Mar 2020 22:20:50 -0600
+
 subcontractor (0.6.2-1) xenial; urgency=medium
 
   * DHCPd now caches state to local cache
