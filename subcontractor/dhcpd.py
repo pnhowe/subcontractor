@@ -25,7 +25,7 @@ class DHCPd( DhcpServer, threading.Thread  ):
     self.dhcp_server_ip = ipv4( iface.getAddr( listen_interface ) ).list()
 
   def setOptions( self, request, reply, item ):
-    address, netmask, gateway, dns_server, host_name, domain_name, boot_file, lease_time = item
+    address, netmask, gateway, dns_server, host_name, domain_name, console, lease_time = item
 
     parameter_request_list = request.GetOption( 'parameter_request_list' )
     user_class = strlist( request.GetOption( 'user_class' ) ).str()
@@ -50,8 +50,13 @@ class DHCPd( DhcpServer, threading.Thread  ):
     if user_class == 'iPXE':
       reply.SetOption( 'ipxe.no-pxedhcp', [ 1 ] )  # disable iPXE's waiting on proxy DHCP
 
-    if DhcpOptions[ 'bootfile_name' ] in parameter_request_list and len( boot_file ) > 0:
+    if DhcpOptions[ 'bootfile_name' ] in parameter_request_list and console is not None:
       reply.SetOption( 'siaddr', self.tftp_server )
+      if user_class.startswith( 'HTTPClient' ):
+        boot_file = strlist( '{0}.efi'.format( console ) ).list()
+      else:  # user_class.startswith( 'PXEClient' ):
+        boot_file = strlist( '{0}.kpxe'.format( console ) ).list()
+
       reply.SetOption( 'file', boot_file + [ 0 ] * ( 128 - len( boot_file  ) ) )
 
   def HandleDhcpDiscover( self, request ):

@@ -11,7 +11,7 @@ class DynamicPool():
 
     self.address_map = {}  # key is address, value is mac
     self.expires_map = {}  # key is address, value is expires datetime
-    self.boot_file_map = {}  # key is address, value is boot file
+    self.console_map = {}  # key is address, value is console
 
     self.lease_time = ipv4( lease_time ).list()
     self.lease_delta = timedelta( seconds=lease_time )
@@ -50,7 +50,7 @@ class DynamicPool():
     self.expires_map[ address ] = self.lease_delta + datetime.utcnow()
 
     host_name = 'dynamic_{0}'.format( address )
-    return ( ipv4( address ).list(), self.netmask, self.gateway, self.dns_server, strlist( host_name ).list(), self.domain_name, self.boot_file_map[ address ], self.lease_time )
+    return ( ipv4( address ).list(), self.netmask, self.gateway, self.dns_server, strlist( host_name ).list(), self.domain_name, self.console_map[ address ], self.lease_time )
 
   def release( self, mac ):
     address = None
@@ -89,7 +89,7 @@ class DynamicPool():
       for address in add_list:
         self.address_map[ address ] = None
         self.expires_map[ address ] = None
-        self.boot_file_map[ address ] = None
+        self.console_map[ address ] = None
 
       for address in remove_list:
         try:
@@ -103,13 +103,13 @@ class DynamicPool():
           pass
 
         try:
-          del self.boot_file_map[ address ]
+          del self.console_map[ address ]
         except KeyError:
           pass
 
-      for address, boot_file in address_list.items():
-        if boot_file is not None:
-          self.boot_file_map[ address ] = strlist( boot_file ).list()
+      for address, console in address_list.items():
+        if console is not None:
+          self.console_map[ address ] = console
 
     finally:
       self.address_map_lock.release()
@@ -141,10 +141,10 @@ class DynamicPool():
     return result
 
   def dump_cache( self ):
-    return ( self.address_map, self.expires_map, self.boot_file_map )
+    return ( self.address_map, self.expires_map, self.console_map )
 
   def load_cache( self, cache ):
     if self.address_map:
       raise Exception( 'allready loaded, can not restore cache' )
 
-    ( self.address_map, self.expires_map, self.boot_file_map ) = cache
+    ( self.address_map, self.expires_map, self.console_map ) = cache
