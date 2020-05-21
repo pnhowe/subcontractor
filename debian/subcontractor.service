@@ -7,4 +7,4 @@ Type=simple
 ExecStart=/usr/sbin/subcontractor -p /var/run/subcontractor.pid -c /etc/subcontractor.conf -i foreground
 
 [Install]
-WantedBy=mutli-user.target
+WantedBy=multi-user.target

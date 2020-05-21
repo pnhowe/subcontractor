@@ -21,7 +21,7 @@ class StaticPool():
     return
 
   # set address to None to remove entry
-  def update_entry( self, mac, address=None, netmask=None, gateway=None, dns_server=None, host_name=None, domain_name=None, console=None ):
+  def update_entry( self, mac, address=None, netmask=None, gateway=None, dns_server=None, host_name=None, domain_name=None, config_uuid=None, console=None ):
     if address is None:
       try:
         del self.mac_map[ mac ]
@@ -37,6 +37,7 @@ class StaticPool():
                             strlist( host_name ).list(),
                             strlist( domain_name ).list(),
                             console,
+                            config_uuid,
                             self.lease_time )
 
   # update everything, if it's not in this list, it will get removed
@@ -52,6 +53,7 @@ class StaticPool():
                               strlist( value.get( 'host_name', '' ) ).list(),
                               strlist( value.get( 'domain_name', '' ) ).list(),
                               value.get( 'console', None ),
+                              value.get( 'config_uuid', None ),
                               self.lease_time )
 
     for item in set( self.mac_map.keys() ) - set( entry_map.keys() ):

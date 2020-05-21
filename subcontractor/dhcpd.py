@@ -25,10 +25,11 @@ class DHCPd( DhcpServer, threading.Thread  ):
     self.dhcp_server_ip = ipv4( iface.getAddr( listen_interface ) ).list()
 
   def setOptions( self, request, reply, item ):
-    address, netmask, gateway, dns_server, host_name, domain_name, console, lease_time = item
+    address, netmask, gateway, dns_server, host_name, domain_name, console, config_uuid, lease_time = item
 
     parameter_request_list = request.GetOption( 'parameter_request_list' )
     user_class = strlist( request.GetOption( 'user_class' ) ).str()
+    architecture = request.GetOption( 'client_system' )
 
     reply.SetOption( 'server_identifier', self.dhcp_server_ip )
     reply.SetOption( 'ip_address_lease_time', lease_time )
@@ -47,14 +48,24 @@ class DHCPd( DhcpServer, threading.Thread  ):
     if dns_server:
       reply.SetOption( 'domain_name_server', dns_server )
 
+    if config_uuid:
+      reply.SetOption( 'config_file', config_uuid )
+
     if user_class == 'iPXE':
       reply.SetOption( 'ipxe.no-pxedhcp', [ 1 ] )  # disable iPXE's waiting on proxy DHCP
 
     if DhcpOptions[ 'bootfile_name' ] in parameter_request_list and console is not None:
       reply.SetOption( 'siaddr', self.tftp_server )
-      if user_class.startswith( 'HTTPClient' ):
+      try:
+        architecture = int( architecture[0] << 8 ) + int( architecture[1] )
+      except IndexError:
+        architecture = 0
+      # see https://www.iana.org/assignments/dhcpv6-parameters/dhcpv6-parameters.xhtml#processor-architecture
+      if architecture == 7:  # x64 UEFI
         boot_file = strlist( '{0}.efi'.format( console ) ).list()
-      else:  # user_class.startswith( 'PXEClient' ):
+      # elif architecture == 6: # x86 UEFI
+      #   boot_file = strlist( '{0}.efi'.format( console ) ).list()
+      else:  # 0 = x86 BIOS
         boot_file = strlist( '{0}.kpxe'.format( console ) ).list()
 
       reply.SetOption( 'file', boot_file + [ 0 ] * ( 128 - len( boot_file  ) ) )

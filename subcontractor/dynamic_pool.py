@@ -50,7 +50,7 @@ class DynamicPool():
     self.expires_map[ address ] = self.lease_delta + datetime.utcnow()
 
     host_name = 'dynamic_{0}'.format( address )
-    return ( ipv4( address ).list(), self.netmask, self.gateway, self.dns_server, strlist( host_name ).list(), self.domain_name, self.console_map[ address ], self.lease_time )
+    return ( ipv4( address ).list(), self.netmask, self.gateway, self.dns_server, strlist( host_name ).list(), self.domain_name, self.console_map[ address ], None, self.lease_time )
 
   def release( self, mac ):
     address = None
