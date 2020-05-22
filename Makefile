@@ -4,11 +4,11 @@ all:
 	./setup.py build
 
 install:
-	mkdir -p $(DESTDIR)/usr/sbin
+	mkdir -p $(DESTDIR)/usr/bin
 	mkdir -p $(DESTDIR)/etc
 
-	install -m 755 sbin/* $(DESTDIR)/usr/sbin
-	install -m 644 subcontractor.conf $(DESTDIR)/etc
+	install -m 755 bin/* $(DESTDIR)/usr/bin
+	install -m 644 subcontractor.conf.sample $(DESTDIR)/etc/
 
 	./setup.py install --root $(DESTDIR) --install-purelib=/usr/lib/python3/dist-packages/ --prefix=/usr --no-compile -O0
 

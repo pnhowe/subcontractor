@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/sbin/subcontractor -p /var/run/subcontractor.pid -c /etc/subcontractor.conf -i foreground
+ExecStart=/usr/bin/subcontractor -p /var/run/subcontractor.pid -c /etc/subcontractor.conf -i foreground
 
 [Install]
 WantedBy=multi-user.target

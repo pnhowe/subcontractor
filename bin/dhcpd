@@ -10,15 +10,11 @@ from subcontractor.dhcpd import DHCPd
 from subcontractor.dynamic_pool import DynamicPool
 from subcontractor.static_pool import StaticPool
 
-# in seconds
-STATIC_LEASE_TIME = 1800
-DYNAMIC_LEASE_TIME = 300
-
 
 class Main( Daemon ):  # TODO: cache to local cache file
   default_config_file = '/etc/subcontractor.conf'
 
-  def __init__( self, *args, **kwargs ):
+  def __init__( self, lease_time, *args, **kwargs ):
     super().__init__( 'subcontractor', *args, **kwargs )
     self.cache_file = None
     self.contractor = None
@@ -26,7 +22,7 @@ class Main( Daemon ):  # TODO: cache to local cache file
     self.cont = True
     self.handler = None
     self.dhcpd = None
-    self.static_pool = StaticPool( STATIC_LEASE_TIME )
+    self.static_pool = None
 
   def config( self, config ):
     self.cache_file = config.get( 'dhcpd', 'cache_file' )
@@ -44,10 +40,28 @@ class Main( Daemon ):  # TODO: cache to local cache file
 
     logging.info( 'working with site "{0}"({1})'.format( item[ 'description' ], item[ 'name' ] ) )
 
+    self.static_lease_time = config.getint( 'dhcpd', 'static_lease_time' )
+    self.dynamic_lease_time = config.getint( 'dhcpd', 'dynamic_lease_time' )
     self.poll_interval = config.getint( 'dhcpd', 'poll_interval' )
     self.listen_interface = config.get( 'dhcpd', 'listen_interface' )
     self.listen_address = config.get( 'dhcpd', 'listen_address' )
     self.tftp_server = config.get( 'dhcpd', 'tftp_server' )
+    self.dynamic_mtu = config.get( 'dhcpd', 'dynamic_pool_mtu' )
+    self.dynamic_vlan = config.get( 'dhcpd', 'dynamic_pool_vlan' )
+    self.dynamic_console = config.get( 'dhcpd', 'dynamic_pool_console' )
+    if not self.dynamic_mtu:
+      self.dynamic_mtu = None
+    else:
+      self.dynamic_mtu = int( self.dynamic_mtu )
+      self.dynamic_mtu = [ self.dynamic_mtu >> 8 & 0xFF, self.dynamic_mtu & 0xFF ]
+    if not self.dynamic_vlan:
+      self.dynamic_vlan = None
+    else:
+      self.dynamic_vlan = int( self.dynamic_vlan )
+      self.dynamic_vlan = [ self.dynamic_vlan >> 8 & 0xFF, self.dynamic_vlan & 0xFF ]
+
+    if self.static_pool is None:
+      self.static_pool = StaticPool( self.static_lease_time )
 
   def main( self ):
     logging.info( 'starting dhcp server...' )
@@ -66,7 +80,7 @@ class Main( Daemon ):  # TODO: cache to local cache file
           name = dynamic_pool[ 'name' ]
           pool_names.append( name )
           if name not in self.dhcpd.pool_names:
-            pool = DynamicPool( DYNAMIC_LEASE_TIME )
+            pool = DynamicPool( self.dynamic_lease_time, self.dynamic_mtu, self.dynamic_vlan, self.dynamic_console )
             pool.update_paramaters( dynamic_pool[ 'gateway' ], dynamic_pool[ 'netmask' ], dynamic_pool[ 'dns_server' ], dynamic_pool[ 'domain_name' ], dynamic_pool[ 'address_map' ] )
             self.dhcpd.add_pool( pool, name )
 

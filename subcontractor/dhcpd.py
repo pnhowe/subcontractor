@@ -25,7 +25,7 @@ class DHCPd( DhcpServer, threading.Thread  ):
     self.dhcp_server_ip = ipv4( iface.getAddr( listen_interface ) ).list()
 
   def setOptions( self, request, reply, item ):
-    address, netmask, gateway, dns_server, host_name, domain_name, console, config_uuid, lease_time = item
+    address, netmask, gateway, mtu, vlan, dns_server, host_name, domain_name, config_uuid, console, lease_time = item
 
     parameter_request_list = request.GetOption( 'parameter_request_list' )
     user_class = strlist( request.GetOption( 'user_class' ) ).str()
@@ -47,6 +47,12 @@ class DHCPd( DhcpServer, threading.Thread  ):
 
     if dns_server:
       reply.SetOption( 'domain_name_server', dns_server )
+
+    if mtu is not None:
+      reply.SetOption( 'interface_mtu', mtu )
+
+    if vlan is not None:
+      reply.SetOption( 'vlan', vlan )
 
     if config_uuid:
       reply.SetOption( 'config_file', config_uuid )

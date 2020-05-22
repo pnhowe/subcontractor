@@ -6,12 +6,15 @@ from pydhcplib.type_strlist import strlist
 
 
 class DynamicPool():
-  def __init__( self, lease_time ):  # lease_time in seconds
+  def __init__( self, lease_time, mtu, vlan, console ):  # lease_time in seconds
     super().__init__()
 
     self.address_map = {}  # key is address, value is mac
     self.expires_map = {}  # key is address, value is expires datetime
     self.console_map = {}  # key is address, value is console
+    self.mtu = mtu
+    self.vlan = vlan
+    self.console = console
 
     self.lease_time = ipv4( lease_time ).list()
     self.lease_delta = timedelta( seconds=lease_time )
@@ -50,7 +53,7 @@ class DynamicPool():
     self.expires_map[ address ] = self.lease_delta + datetime.utcnow()
 
     host_name = 'dynamic_{0}'.format( address )
-    return ( ipv4( address ).list(), self.netmask, self.gateway, self.dns_server, strlist( host_name ).list(), self.domain_name, self.console_map[ address ], None, self.lease_time )
+    return ( ipv4( address ).list(), self.netmask, self.gateway, self.mtu, self.vlan, self.dns_server, strlist( host_name ).list(), self.domain_name, None, self.console, self.lease_time )
 
   def release( self, mac ):
     address = None

@@ -1,0 +1,66 @@
+[contractor]
+host: http://contractor
+root_path: /api/v1/
+;proxy:
+
+[subcontractor]
+site: site1
+poll_interval: 20
+job_delay: 2
+max_concurent_jobs: 10
+max_job_request_size: 5
+
+; 0 or commenting out disables the module
+[modules]
+; foundation modules
+;subcontractor_plugins.vcenter: 0
+;subcontractor_plugins.virtualbox: 0
+;subcontractor_plugins.proxmox: 0
+;subcontractor_plugins.ipmi: 0
+;subcontractor_plugins.amt: 0
+;subcontractor_plugins.aws: 0
+;subcontractor_plugins.azure: 0
+;subcontractor_plugins.docker: 0
+
+; utility modules
+subcontractor_plugins.iputils: 5
+;subcontractor_plugins.ssh: 2
+
+[credentials]
+;type: hashicorp
+;host: https://10.0.0.20:8200
+;token: s.XXXXXXXXXXXXXXXXXXXX
+;proxy:
+;verify_ssl: true
+
+[dhcpd]
+cache_file: /var/run/dhcpd.cache
+
+; MTU for dynamically assigned ips, leave blank to allow defaults of iPXE/OS to be used
+dynamic_pool_mtu:
+
+; the vlan for communication post DHCP for dynamic ips, leave blank for un-defined
+dynamic_pool_vlan:
+
+; the console for output of dynamically assigned ips, can be: console, ttyS0, ttyS1, ttyS2, ttyS3
+dynamic_pool_console: console
+
+; contractor will hold the polling request for this many seconds, if an update
+; occurs it should come back immediately, this value just insures it doesn't take more
+; than this value.
+poll_interval: 40
+
+; length in seconds of the lease of a dynamically assigned ip address, to short of a value here
+; and a machine that takes to loong to boot will lose it's reservation before it finishes
+; bootstrapping.  To long and any hung machine or machine not releasing it's lease will
+; hold up the other machines waiting for a turn
+dynamic_lease_time: 600
+
+; length in seconds of a lease for statically assigned ip.  Generally this can be
+; quite large, unless ips are being resigned often, or you are sensitive quick
+; ip changes
+static_lease_time: 3600
+
+listen_interface: lo
+listen_address: 0.0.0.0
+tftp_server: 10.0.0.10
