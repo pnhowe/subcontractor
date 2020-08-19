@@ -14,7 +14,7 @@ from subcontractor.static_pool import StaticPool
 class Main( Daemon ):  # TODO: cache to local cache file
   default_config_file = '/etc/subcontractor.conf'
 
-  def __init__( self, lease_time, *args, **kwargs ):
+  def __init__( self, *args, **kwargs ):
     super().__init__( 'subcontractor', *args, **kwargs )
     self.cache_file = None
     self.contractor = None

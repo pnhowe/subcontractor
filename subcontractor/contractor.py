@@ -2,6 +2,10 @@ import logging
 
 from cinp.client import CInP, NotFound
 
+CONTRACTOR_API_VERSION = '0.9'
+SUBCONTRACTOR_USERNAME = 'subcontractor'
+SUBCONTRACTOR_PASSWORD = 'subcontractor'
+
 
 class Contractor():
   def __init__( self, site, host, root_path, proxy ):
@@ -9,6 +13,16 @@ class Contractor():
     self.module_list = []
     self.site = '{0}Site/Site:{1}:'.format( root_path, site )
     self.cinp = CInP( host=host, root_path=root_path, proxy=proxy )
+
+    root = self.cinp.describe( '/api/v1/' )
+    if root[ 'api-version' ] != CONTRACTOR_API_VERSION:
+      raise Exception( 'Expected API version "{0}" found "{1}"'.format( CONTRACTOR_API_VERSION, root[ 'api-version' ] ) )
+
+    self.token = self.cinp.call( '/api/v1/Auth/User(login)', { 'username': SUBCONTRACTOR_USERNAME, 'password': SUBCONTRACTOR_PASSWORD } )
+    self.cinp.setAuth( SUBCONTRACTOR_USERNAME, self.token )
+
+  def logout( self ):
+    self.cinp.call( '/api/v1/Auth/User(logout)', { 'token': self.token } )
 
   def setModuleList( self, module_list ):
     self.module_list = module_list

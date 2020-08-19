@@ -66,13 +66,37 @@ class DHCPd( DhcpServer, threading.Thread  ):
         architecture = int( architecture[0] << 8 ) + int( architecture[1] )
       except IndexError:
         architecture = 0
+
       # see https://www.iana.org/assignments/dhcpv6-parameters/dhcpv6-parameters.xhtml#processor-architecture
       if architecture == 7:  # x64 UEFI
         boot_file = strlist( '{0}.efi'.format( console ) ).list()
       # elif architecture == 6: # x86 UEFI
       #   boot_file = strlist( '{0}.efi'.format( console ) ).list()
+      # elif architecture == 10: # ARM 32bit UEFI
+      #   boot_file = strlist( '{0}.efi'.format( console ) ).list()
+      # elif architecture == 11: # ARM 64bit UEFI
+      #   boot_file = strlist( '{0}.efi'.format( console ) ).list()
       else:  # 0 = x86 BIOS
         boot_file = strlist( '{0}.kpxe'.format( console ) ).list()
+
+      # match if substring (option vendor-class-identifier, 0, 9) = "PXEClient";
+      # next-server 192.168.111.1;
+      # filename "/bootx64.efi";
+
+      # match if substring (option vendor-class-identifier, 0, 10) = "HTTPClient";
+      # option vendor-class-identifier "HTTPClient";
+      # filename "http://www.httpboot.local/sle/EFI/BOOT/bootx64.efi";
+
+      # Architecture Type (hexadecimal) 	Architecture Name
+      # 00:06 	x86 UEFI TFTP
+      # 00:07 	x86-64 UEFI TFTP
+      # 00:0f 	x86 UEFI HTTP
+      # 00:10 	x86-64 UEFI HTTP
+      # 00:0a 	ARM 32 UEFI
+      # 00:0b 	ARM 64 UEFI
+      # 00:12 	arm 32 UEFI HTTP
+      # 00:13 	arm 64 UEFI HTTP
+      # (undefined/other) 	Legacy x86 PXE
 
       reply.SetOption( 'file', boot_file + [ 0 ] * ( 128 - len( boot_file  ) ) )
 

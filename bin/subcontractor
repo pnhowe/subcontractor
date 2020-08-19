@@ -74,5 +74,6 @@ class Main( Daemon ):
     logging.info( 'got stop signal' )
     self.cont = False
 
+
 if __name__ == '__main__':
   Main().run()

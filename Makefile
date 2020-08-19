@@ -10,7 +10,7 @@ install:
 	install -m 755 bin/* $(DESTDIR)/usr/bin
 	install -m 644 subcontractor.conf.sample $(DESTDIR)/etc/
 
-	./setup.py install --root $(DESTDIR) --install-purelib=/usr/lib/python3/dist-packages/ --prefix=/usr --no-compile -O0
+	./setup.py install --root=$(DESTDIR) --install-purelib=/usr/lib/python3/dist-packages/ --prefix=/usr --no-compile -O0
 
 version:
 	echo $(VERSION)
