@@ -81,11 +81,11 @@ class Main( Daemon ):  # TODO: cache to local cache file
           pool_names.append( name )
           if name not in self.dhcpd.pool_names:
             pool = DynamicPool( self.dynamic_lease_time, self.dynamic_mtu, self.dynamic_vlan, self.dynamic_console )
-            pool.update_paramaters( dynamic_pool[ 'gateway' ], dynamic_pool[ 'netmask' ], dynamic_pool[ 'dns_server' ], dynamic_pool[ 'domain_name' ], dynamic_pool[ 'address_map' ] )
+            pool.update_paramaters( dynamic_pool[ 'gateway' ], dynamic_pool[ 'netmask' ], dynamic_pool[ 'dns_server' ], dynamic_pool[ 'domain_name' ], dynamic_pool[ 'address_list' ] )
             self.dhcpd.add_pool( pool, name )
 
           else:
-            self.dhcpd.get_pool( name ).update_paramaters( dynamic_pool[ 'gateway' ], dynamic_pool[ 'netmask' ], dynamic_pool[ 'dns_server' ], dynamic_pool[ 'domain_name' ], dynamic_pool[ 'address_map' ] )
+            self.dhcpd.get_pool( name ).update_paramaters( dynamic_pool[ 'gateway' ], dynamic_pool[ 'netmask' ], dynamic_pool[ 'dns_server' ], dynamic_pool[ 'domain_name' ], dynamic_pool[ 'address_list' ] )
 
         self.static_pool.update( self.contractor.getDHCPdStaticPools() )
 

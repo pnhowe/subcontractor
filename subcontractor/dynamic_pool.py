@@ -11,7 +11,6 @@ class DynamicPool():
 
     self.address_map = {}  # key is address, value is mac
     self.expires_map = {}  # key is address, value is expires datetime
-    self.console_map = {}  # key is address, value is console
     self.mtu = mtu
     self.vlan = vlan
     self.console = console
@@ -20,13 +19,13 @@ class DynamicPool():
     self.lease_delta = timedelta( seconds=lease_time )
     self.address_map_lock = Semaphore()
 
-  def update_paramaters( self, gateway, netmask, dns_server, domain_name, address_map ):
+  def update_paramaters( self, gateway, netmask, dns_server, domain_name, address_list ):
     self.netmask = ipv4( netmask ).list()
     self.gateway = ipv4( gateway ).list() if gateway is not None else None
     self.domain_name = strlist( domain_name ).list()
     self.dns_server = ipv4( dns_server ).list()
 
-    self._update_address_list( address_map )
+    self._update_address_list( address_list )
 
   def lookup( self, mac, assign ):
     address = None
@@ -92,7 +91,6 @@ class DynamicPool():
       for address in add_list:
         self.address_map[ address ] = None
         self.expires_map[ address ] = None
-        self.console_map[ address ] = None
 
       for address in remove_list:
         try:
@@ -104,15 +102,6 @@ class DynamicPool():
           del self.address_map[ address ]
         except KeyError:
           pass
-
-        try:
-          del self.console_map[ address ]
-        except KeyError:
-          pass
-
-      for address, console in address_list.items():
-        if console is not None:
-          self.console_map[ address ] = console
 
     finally:
       self.address_map_lock.release()
@@ -144,10 +133,10 @@ class DynamicPool():
     return result
 
   def dump_cache( self ):
-    return ( self.address_map, self.expires_map, self.console_map )
+    return ( self.address_map, self.expires_map )
 
   def load_cache( self, cache ):
     if self.address_map:
       raise Exception( 'allready loaded, can not restore cache' )
 
-    ( self.address_map, self.expires_map, self.console_map ) = cache
+    ( self.address_map, self.expires_map ) = cache
