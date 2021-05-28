@@ -13,6 +13,7 @@ max_job_request_size: 5
 ; 0 or commenting out disables the module
 [modules]
 ; foundation modules
+;subcontractor_plugins.manual: 0
 ;subcontractor_plugins.vcenter: 0
 ;subcontractor_plugins.virtualbox: 0
 ;subcontractor_plugins.proxmox: 0

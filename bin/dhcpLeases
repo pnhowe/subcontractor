@@ -31,7 +31,7 @@ fp.close()
 
 print( '-- Static Entries --' )
 for mac, entry in cache[ '__static__' ].items():
-  print( '{0} - {1}'.format( mac, ipv4( entry( [ 0 ] ).str() ) ) )
+  print( '{0} - {1}'.format( mac, ipv4( entry[0] ) ) )
 
 print()
 print( '-- Dynamic Entries --' )
