@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import logging
-import time
 import os
+from threading import Event
 
 from subcontractor.daemon import Daemon
 from subcontractor.contractor import Contractor
@@ -19,7 +19,7 @@ class Main( Daemon ):  # TODO: cache to local cache file
     self.cache_file = None
     self.contractor = None
     self.site = None
-    self.cont = True
+    self.stop_event = Event()
     self.handler = None
     self.dhcpd = None
     self.static_pool = None
@@ -33,7 +33,7 @@ class Main( Daemon ):  # TODO: cache to local cache file
     if not proxy:
       proxy = None
 
-    self.contractor = Contractor( self.site, host=host, root_path=root_path, proxy=proxy )
+    self.contractor = Contractor( self.site, host=host, root_path=root_path, proxy=proxy, stop_event=self.stop_event )
     item = self.contractor.getSite()
     if item is None:
       raise ValueError( 'site "{0}" does not exist'.format( self.site ) )
@@ -71,7 +71,7 @@ class Main( Daemon ):  # TODO: cache to local cache file
     self.dhcpd.add_pool( self.static_pool, '__static__' )  # static pools need to be added first so they are searched first
     self.dhcpd.start()
     logging.info( 'running...' )
-    while self.cont:
+    while not self.stop_event.is_set():
       try:
         dynamic_pool_list = self.contractor.getDHCPdDynamidPools()
         pool_names = [ '__static__' ]
@@ -98,15 +98,12 @@ class Main( Daemon ):  # TODO: cache to local cache file
         self.dhcpd.save_cache( self.cache_file )
 
         logging.debug( 'sleeping for "{0}"...'.format( self.poll_interval ) )
-        for _ in range( 0, self.poll_interval ):
-          if not self.cont:
-            break
-          time.sleep( 1 )  # using time.sleep instead of a event.wait( timeout=? ) to avoid time warping problems
+        self.stop_event.wait( self.poll_interval )
 
       except Exception:
         logging.exception( 'Exception occured during main loop' )
         self.dhcpd.stop()
-        self.cont = False
+        self.stop_event.set()
 
     self.dhcpd.save_cache( self.cache_file )
     logging.info( 'waiting for dhcp server...' )
@@ -115,7 +112,7 @@ class Main( Daemon ):  # TODO: cache to local cache file
 
   def stop( self ):
     logging.info( 'got stop signal' )
-    self.cont = False
+    self.stop_event.set()
     if self.dhcpd is not None:
       self.dhcpd.stop()
 

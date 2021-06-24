@@ -1,3 +1,10 @@
+subcontractor (0.9.0-1) bionic; urgency=medium
+
+  * now using cinp's retrys
+  *
+
+ -- Peter Howe <peter@BlueGoo-L>  Thu, 24 Jun 2021 12:34:23 -0600
+
 subcontractor (0.8.0-1) bionic; urgency=medium
 
   * Mmoved to Bionic
