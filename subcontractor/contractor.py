@@ -9,14 +9,15 @@ SUBCONTRACTOR_PASSWORD = 'subcontractor'
 
 class Contractor():
   def relogin( func ):
-    def wrapper( self ):
+    def wrapper( self, *args, **kwargs ):
       try:
-        self.func()
+        return func( self, *args, **kwargs )
       except InvalidSession:
         logging.debug( 'contractor: got invalid session, re-logging in and re-trying' )
         self.logout()
         self.login()
-        self.func()
+        return func( self, *args, **kwargs )
+    return wrapper
 
   def __init__( self, site, host, root_path, proxy, stop_event ):
     super().__init__()
@@ -24,7 +25,7 @@ class Contractor():
     self.site = '{0}Site/Site:{1}:'.format( root_path, site )
     self.cinp = CInP( host=host, root_path=root_path, proxy=proxy, retry_event=stop_event )
 
-    root = self.cinp.describe( '/api/v1/', retry_count=30 )  # very tollerant for the initial describe, let things settle
+    root, _ = self.cinp.describe( '/api/v1/', retry_count=30 )  # very tollerant for the initial describe, let things settle
     if root[ 'api-version' ] != CONTRACTOR_API_VERSION:
       raise Exception( 'Expected API version "{0}" found "{1}"'.format( CONTRACTOR_API_VERSION, root[ 'api-version' ] ) )
 
@@ -35,7 +36,12 @@ class Contractor():
     self.cinp.setAuth( SUBCONTRACTOR_USERNAME, self.token )
 
   def logout( self ):
-    self.cinp.call( '/api/v1/Auth/User(logout)', { 'token': self.token }, retry_count=10  )
+    try:
+      self.cinp.call( '/api/v1/Auth/User(logout)', { 'token': self.token }, retry_count=10  )
+    except InvalidSession:
+      pass
+    self.cinp.setAuth()
+    self.token = None
 
   def setModuleList( self, module_list ):
     self.module_list = module_list

@@ -1,9 +1,14 @@
+subcontractor (0.10.0-1) bionic; urgency=medium
+
+  * session handeling
+
+ -- Peter Howe <pnhowe@gmail.com>  Thu, 24 Jun 2021 14:40:51 -0600
+
 subcontractor (0.9.0-1) bionic; urgency=medium
 
   * now using cinp's retrys
-  *
 
- -- Peter Howe <peter@BlueGoo-L>  Thu, 24 Jun 2021 12:34:23 -0600
+ -- Peter Howe <pnhowe@gmail.com>  Thu, 24 Jun 2021 12:34:23 -0600
 
 subcontractor (0.8.0-1) bionic; urgency=medium
 
