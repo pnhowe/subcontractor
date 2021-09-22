@@ -1,4 +1,10 @@
-subcontractor (0.10.0-1) bionic; urgency=medium
+subcontractor (0.11.0-1) focal; urgency=medium
+
+  * added packet and redfish
+
+ -- Peter Howe <pnhowe@gmail.com>  Wed, 22 Sep 2021 13:56:05 -0600
+
+subcontractor (0.10.0-1) focal; urgency=medium
 
   * session handeling
 

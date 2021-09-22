@@ -21,13 +21,15 @@ clean:
 	$(RM) dpkg
 	$(RM) -r htmlcov
 	dh_clean || true
+	find -name *.pyc -delete
+	find -name __pycache__ -delete
 
 dist-clean: cleane
 
 .PHONY:: all install version clean dist-clean
 
 test-blueprints:
-	echo ubuntu-bionic-base
+	echo ubuntu-focal-base
 
 test-requires:
 	echo flake8 python3-pytest python3-pytest-cov python3-pytest-django python3-pytest-mock
@@ -41,16 +43,16 @@ test:
 .PHONY:: test-blueprints test-requires test
 
 dpkg-blueprints:
-	echo ubuntu-bionic-base
+	echo ubuntu-focal-base
 
 dpkg-requires:
-	echo dpkg-dev debhelper python3-dev python3-setuptools
+	echo dpkg-dev debhelper python3-dev python3-setuptools dh-python
 
 dpkg:
 	dpkg-buildpackage -b -us -uc
 	touch dpkg
 
 dpkg-file:
-	echo $(shell ls ../subcontractor_*.deb):bionic
+	echo $(shell ls ../subcontractor_*.deb):focal
 
 .PHONY:: dpkg-blueprints dpkg-requires dpkg dpkg-file

@@ -22,14 +22,13 @@ class Main( Daemon ):
   def config( self, config ):
     self.site = config.get( 'subcontractor', 'site' )
     host = config.get( 'contractor', 'host' )
-    root_path = config.get( 'contractor', 'root_path' )
     proxy = config.get( 'contractor', 'proxy', fallback=None )
     if not proxy:
       proxy = None
 
     setup( config )
 
-    self.contractor = Contractor( self.site, host=host, root_path=root_path, proxy=proxy, stop_event=self.stop_event )
+    self.contractor = Contractor( self.site, host=host, root_path='/api/v1/', proxy=proxy, stop_event=self.stop_event )
     item = self.contractor.getSite()
     if item is None:
       raise ValueError( 'site "{0}" does not exist'.format( self.site ) )
