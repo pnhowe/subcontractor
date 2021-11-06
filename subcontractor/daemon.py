@@ -5,7 +5,25 @@ import argparse
 import logging
 import configparser
 import pwd
-from logging.handlers import SysLogHandler
+from logging.handlers import SysLogHandler, StreamHandler
+
+
+class ColorizerStreamHandler( StreamHandler ):  # ANSI coloring, really should detect if it's an ANSI screen first
+  def emit( self, record ):
+    levelname_save = record.levelname
+    levelno = record.levelno
+    if levelno >= logging.ERROR:
+      color = 31  # red
+    elif levelno >= logging.WARNING:
+      color = 33  # yellow
+    elif levelno >= logging.INFO:
+      color = 32  # green
+    else:
+      color = 34  # blue
+
+    record.levelname = '\033[{0}m{1}\033[0m'.format( color, record.levelname )
+    super.emit( record )
+    record.levelname = levelname_save
 
 
 class Daemon():
@@ -42,14 +60,16 @@ class Daemon():
 
     self.pid_file = args.pid_file
 
-    logging.basicConfig()
-    logger = logging.getLogger()
-
     if args.action == 'background':  # has to happen before we start logging
-      logger.handlers = []
-      handler = SysLogHandler( address='/dev/log', facility=SysLogHandler.LOG_DAEMON )
-      handler.setFormatter( logging.Formatter( fmt='{0} [%(process)d]: %(message)s'.format( self.name ) ) )
-      logger.addHandler( handler )
+      log_handler = SysLogHandler( address='/dev/log', facility=SysLogHandler.LOG_DAEMON )
+      log_format = '{0} [%(process)d] %(levelname)-8s: %(message)s'.format( self.name )
+
+    else:
+      log_handler = ColorizerStreamHandler( sys.stdout )
+      log_format = '[%(asctime)s] %(levelname)s: %(message)s'
+
+    logging.basicConfig( format=log_format, handlers=[ log_handler ] )
+    logger = logging.getLogger()
 
     if args.debug:
       logger.setLevel( logging.DEBUG )
