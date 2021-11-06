@@ -62,7 +62,7 @@ class Main( Daemon ):
       logging.debug( 'sleeping for "{0}"...'.format( self.poll_interval ) )
       self.stop_event.wait( self.poll_interval )
 
-    logging.info( 'wiating for jobs to finish...' )
+    logging.info( 'waiting for jobs to finish...' )
     self.handler.wait()
     logging.info( 'done.' )
 
