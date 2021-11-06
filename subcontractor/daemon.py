@@ -5,7 +5,8 @@ import argparse
 import logging
 import configparser
 import pwd
-from logging.handlers import SysLogHandler, StreamHandler
+from logging.handlers import SysLogHandler
+from logging import StreamHandler
 
 
 class ColorizerStreamHandler( StreamHandler ):  # ANSI coloring, really should detect if it's an ANSI screen first
@@ -22,7 +23,7 @@ class ColorizerStreamHandler( StreamHandler ):  # ANSI coloring, really should d
       color = 34  # blue
 
     record.levelname = '\033[{0}m{1}\033[0m'.format( color, record.levelname )
-    super.emit( record )
+    super().emit( record )
     record.levelname = levelname_save
 
 
