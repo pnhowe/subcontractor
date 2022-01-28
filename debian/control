@@ -8,6 +8,6 @@ X-Python3-Version: >= 3.6
 
 Package: subcontractor
 Architecture: all
-Depends: python3 (>= 3.6), python3-dhcplib (>= 0.7), python3-cinp (>= 0.24), ${misc:Depends}, ${python3:Depends}
+Depends: python3 (>= 3.6), python3-dhcplib (>= 0.7), python3-cinp (>= 1.0), ${misc:Depends}, ${python3:Depends}
 Description: Subcontractor
   Subcontractor
