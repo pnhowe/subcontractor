@@ -53,9 +53,9 @@ class Contractor():
       return None
 
   @relogin
-  def getJobs( self, job_count ):
-    logging.debug( 'contractor: asking for "{0}" more jobs'.format( job_count ) )
-    return self.cinp.call( '/api/v1/SubContractor/Dispatch(getJobs)', { 'site': self.site, 'module_list': self.module_list, 'job_count': job_count }, retry_count=20 )
+  def getJobs( self, max_jobs ):
+    logging.debug( 'contractor: asking for "{0}" more jobs'.format( max_jobs ) )
+    return self.cinp.call( '/api/v1/SubContractor/Dispatch(getJobs)', { 'site': self.site, 'module_list': self.module_list, 'max_jobs': max_jobs } )
 
   @relogin
   def jobResults( self, job_id, data, cookie ):
