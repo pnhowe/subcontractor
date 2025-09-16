@@ -1,7 +1,6 @@
 VERSION := $(shell head -n 1 debian/changelog | awk '{match( $$0, /\(.+?\)/); print substr( $$0, RSTART+1, RLENGTH-2 ) }' | cut -d- -f1 )
 
 all:
-	./setup.py build
 
 install:
 	mkdir -p $(DESTDIR)/usr/bin
@@ -10,13 +9,12 @@ install:
 	install -m 755 bin/* $(DESTDIR)/usr/bin
 	install -m 644 subcontractor.conf.sample $(DESTDIR)/etc/
 
-	./setup.py install --root=$(DESTDIR) --install-purelib=/usr/lib/python3/dist-packages/ --prefix=/usr --no-compile -O0
+	pip3 install . --target="$(DESTDIR)/usr/lib/python3/dist-packages" --no-deps --no-compile --no-build-isolation
 
 version:
 	echo $(VERSION)
 
 clean:
-	./setup.py clean || true
 	$(RM) -r build
 	$(RM) dpkg
 	$(RM) -r htmlcov
@@ -29,7 +27,7 @@ dist-clean: cleane
 .PHONY:: all install version clean dist-clean
 
 test-blueprints:
-	echo ubuntu-focal-base
+	echo ubuntu-noble-base
 
 test-requires:
 	echo flake8 python3-pytest python3-pytest-cov python3-pytest-django python3-pytest-mock
@@ -53,6 +51,6 @@ dpkg:
 	touch dpkg
 
 dpkg-file:
-	echo $(shell ls ../subcontractor_*.deb):focal
+	echo $(shell ls ../subcontractor_*.deb):noble
 
 .PHONY:: dpkg-blueprints dpkg-requires dpkg dpkg-file

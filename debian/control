@@ -1,13 +1,13 @@
 Source: subcontractor
-Section: multiverse/t3kton
+Section: utils
 Priority: optional
 Maintainer: Peter Howe <pnhowe@gmail.com>
-Build-Depends: debhelper (>= 9), python3 (>= 3.6), python3-dev (>=3.6), python3-setuptools (>= 20.0), lsb-release
+Build-Depends: debhelper (>= 9), python3 (>= 3.10), python3-dev (>= 3.10), python3-setuptools (>= 20.0), lsb-release
 Standards-Version: 3.8.3
-X-Python3-Version: >= 3.6
+X-Python3-Version: >= 3.10
 
 Package: subcontractor
 Architecture: all
-Depends: python3 (>= 3.6), python3-dhcplib (>= 0.7), python3-cinp (>= 1.0), ${misc:Depends}, ${python3:Depends}
+Depends: python3 (>= 3.10), python3-dhcplib (>= 0.7.3), python3-cinp (>= 1.3), ${misc:Depends}, ${python3:Depends}
 Description: Subcontractor
   Subcontractor

@@ -13,12 +13,12 @@ max_job_request_size: 5
 [modules]
 ; foundation modules
 ;subcontractor_plugins.manual: 0
+;subcontractor_plugins.test: 0
 ;subcontractor_plugins.vcenter: 0
 ;subcontractor_plugins.virtualbox: 0
-;subcontractor_plugins.proxmox: 0
+;subcontractor_plugins.libvirt: 0
 ;subcontractor_plugins.ipmi: 0
 ;subcontractor_plugins.redfish: 0
-;subcontractor_plugins.packet: 0
 ;subcontractor_plugins.amt: 0
 ;subcontractor_plugins.aws: 0
 ;subcontractor_plugins.azure: 0

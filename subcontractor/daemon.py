@@ -128,12 +128,6 @@ class Daemon():
     if args.action == 'background':
       self._daemonize()
 
-    self._write_pid_file()
-
-    signal.signal( signal.SIGINT, self._sigHandlerStop )
-    signal.signal( signal.SIGQUIT, self._sigHandlerStop )
-    signal.signal( signal.SIGTERM, self._sigHandlerStop )
-
     logging.debug( 'daemon: loading config from "{0}"...'.format( args.config ) )
     config = configparser.ConfigParser( interpolation=None )
     try:
@@ -144,13 +138,21 @@ class Daemon():
       logging.exception( 'daemon: error parsing configfile: "{0}"'.format( e ) )
       sys.exit( 1 )
 
-    if args.user is not None:
-      self._change_user( args.user )
+    self._write_pid_file()
 
-    self.config( config )
-
-    logging.debug( 'daemon: starting main function...' )
     try:
+      if args.user is not None:
+        logging.debug( 'daemon: changing to user "{0}"...'.format( args.user ) )
+        self._change_user( args.user )
+
+      logging.debug( 'daemon: loading config...' )
+      self.config( config )
+
+      signal.signal( signal.SIGINT, self._sigHandlerStop )
+      signal.signal( signal.SIGQUIT, self._sigHandlerStop )
+      signal.signal( signal.SIGTERM, self._sigHandlerStop )
+
+      logging.debug( 'daemon: starting main function...' )
       self.main()
       logging.debug( 'daemon: main completed' )
     except Exception as e:

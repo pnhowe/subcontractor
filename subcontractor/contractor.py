@@ -2,7 +2,7 @@ import logging
 
 from cinp.client import CInP, NotFound, InvalidSession
 
-CONTRACTOR_API_VERSION = '0.9'
+CONTRACTOR_API_VERSION = '1.0'
 SUBCONTRACTOR_USERNAME = 'subcontractor'
 SUBCONTRACTOR_PASSWORD = 'subcontractor'
 
