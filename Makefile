@@ -9,7 +9,7 @@ install:
 	install -m 755 bin/* $(DESTDIR)/usr/bin
 	install -m 644 subcontractor.conf.sample $(DESTDIR)/etc/
 
-	pip3 install . --target="$(DESTDIR)/usr/lib/python3/dist-packages" --no-deps --no-compile --no-build-isolation
+	HOME=/tmp pip3 install . --target="$(DESTDIR)/usr/lib/python3/dist-packages" --no-deps --no-compile --no-build-isolation
 
 version:
 	echo $(VERSION)
@@ -18,11 +18,12 @@ clean:
 	$(RM) -r build
 	$(RM) dpkg
 	$(RM) -r htmlcov
+	$(RM) -r subcontractor.egg-info
 	dh_clean || true
 	find -name *.pyc -delete
 	find -name __pycache__ -delete
 
-dist-clean: cleane
+dist-clean: clean
 
 .PHONY:: all install version clean dist-clean
 
