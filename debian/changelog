@@ -1,3 +1,9 @@
+subcontractor (0.12.2-1) noble; urgency=medium
+
+  * systemd service and default config tweeks
+
+ -- Peter Howe <pnhowe@gmail.com>  Wed, 24 Sep 2025 09:27:05 -0600
+
 subcontractor (0.12.1-1) noble; urgency=medium
 
   * Color console logging

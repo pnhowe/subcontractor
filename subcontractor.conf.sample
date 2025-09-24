@@ -23,6 +23,7 @@ max_job_request_size: 5
 ;subcontractor_plugins.aws: 0
 ;subcontractor_plugins.azure: 0
 ;subcontractor_plugins.docker: 0
+;subcontractor_plugins.libvirt: 0
 
 ; utility modules
 subcontractor_plugins.iputils: 5

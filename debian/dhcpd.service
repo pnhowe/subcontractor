@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=simple
 ExecStart=/usr/bin/dhcpd -p /var/run/dhcpd.pid -c /etc/subcontractor.conf -i foreground
-DefaultTimeoutStopSec=120
+TimeoutStopSec=120
 
 [Install]
 WantedBy=multi-user.target
