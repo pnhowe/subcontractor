@@ -1,3 +1,9 @@
+subcontractor (0.12.3-1) noble; urgency=medium
+
+  * Moved from threading to async
+
+ -- Peter Howe <pnhowe@gmail.com>  Tue, 07 Oct 2025 11:01:30 -0600
+
 subcontractor (0.12.2-1) noble; urgency=medium
 
   * systemd service and default config tweeks

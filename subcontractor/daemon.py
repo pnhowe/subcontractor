@@ -5,6 +5,7 @@ import argparse
 import logging
 import configparser
 import pwd
+import asyncio
 from logging.handlers import SysLogHandler
 from logging import StreamHandler
 
@@ -41,8 +42,25 @@ class Daemon():
   def stop( self ):  # override
     pass
 
-  def main( self ):  # override
+  async def main( self ):  # override
     pass
+
+  async def start_main( self, config, args ):
+    logging.debug( 'daemon: loading config...' )
+    self.config( config )
+
+    if args.user is not None:
+      logging.debug( 'daemon: changing to user "{0}"...'.format( args.user ) )
+      self._change_user( args.user )
+
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler( signal.SIGINT, self._sigHandlerStop )
+    loop.add_signal_handler( signal.SIGQUIT, self._sigHandlerStop )
+    loop.add_signal_handler( signal.SIGTERM, self._sigHandlerStop )
+
+    logging.debug( 'daemon: starting main function...' )
+    await self.main()
+    logging.debug( 'daemon: main completed' )
 
   def run( self ):
     parser = argparse.ArgumentParser( description=self.name )
@@ -74,6 +92,7 @@ class Daemon():
 
     if args.debug:
       logger.setLevel( logging.DEBUG )
+      logging.getLogger( 'asyncio' ).setLevel( logging.WARNING )
     elif args.info:
       logger.setLevel( logging.INFO )
     else:
@@ -141,20 +160,7 @@ class Daemon():
     self._write_pid_file()
 
     try:
-      if args.user is not None:
-        logging.debug( 'daemon: changing to user "{0}"...'.format( args.user ) )
-        self._change_user( args.user )
-
-      logging.debug( 'daemon: loading config...' )
-      self.config( config )
-
-      signal.signal( signal.SIGINT, self._sigHandlerStop )
-      signal.signal( signal.SIGQUIT, self._sigHandlerStop )
-      signal.signal( signal.SIGTERM, self._sigHandlerStop )
-
-      logging.debug( 'daemon: starting main function...' )
-      self.main()
-      logging.debug( 'daemon: main completed' )
+      asyncio.run( self.start_main( config, args ) )
     except Exception as e:
       logging.exception( 'daemon: Exception "{0}" while executing main'.format( e ) )
 
@@ -163,7 +169,7 @@ class Daemon():
     logging.debug( 'daemon: done!' )
     logging.shutdown()
 
-  def _sigHandlerStop( self, sig, frame ):
+  def _sigHandlerStop( self ):
     logging.info( 'daemon: got stop signal' )
     self.stop()
 

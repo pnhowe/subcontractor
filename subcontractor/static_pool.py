@@ -16,16 +16,16 @@ class StaticPool():
     self.mac_map = {}
     self.lease_time = ipv4( lease_time ).list()
 
-  def lookup( self, mac, assign ):
+  async def lookup( self, mac, assign ):
     try:
       return self.mac_map[ mac ]
     except KeyError:
       return None
 
-  def release( self, mac ):
+  async def release( self, mac ):
     return
 
-  def decline( self, mac ):
+  async def decline( self, mac ):
     return
 
   # set address to None to remove entry
@@ -71,7 +71,7 @@ class StaticPool():
     for item in set( self.mac_map.keys() ) - set( entry_map.keys() ):
       del self.mac_map[ item ]
 
-  def cleanup( self ):
+  async def cleanup( self ):
     pass
 
   def summary( self ):

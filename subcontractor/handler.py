@@ -1,8 +1,7 @@
 import logging
-import time
-import threading
 import hashlib
 import copy
+import asyncio
 from importlib import import_module
 
 
@@ -33,7 +32,7 @@ def _hideify( paramaters ):
   return _hideify_internal( salt, copy.copy( paramaters ) )
 
 
-class JobWorker( threading.Thread ):
+class JobWorker():
   def __init__( self, contractor, cookie, job_id, function, paramaters, semaphore ):
     super().__init__()
     self.contractor = contractor
@@ -43,13 +42,10 @@ class JobWorker( threading.Thread ):
     self.paramaters = paramaters
     self.semaphore = semaphore
 
-  def run( self ):
-    try:
-      logging.debug( 'handler: acquring lock for "{0}"...'.format( self.job_id ) )
-      self.semaphore.acquire()
-      logging.debug( 'handler: lock acquired for "{0}"...'.format( self.job_id ) )
+  async def run( self ):
+    logging.debug( 'handler: acquring lock for "{0}"...'.format( self.job_id ) )
+    async with self.semaphore:
       logging.debug( 'handler: starting job "{0}" with "{1}"'.format( self.function, _hideify( self.paramaters ) ) )
-
       try:
         data = self.function( self.paramaters )
       except Exception as e:
@@ -57,9 +53,7 @@ class JobWorker( threading.Thread ):
         self.contractor.jobError( self.job_id, 'Unhandled Exception "{0}"({1})'.format( e, type( e ).__name__ ), self.cookie )
         return
 
-    finally:
-      self.semaphore.release()
-      logging.debug( 'handler: lock for "{0}" released'.format( self.job_id ) )
+    logging.debug( 'handler: lock for "{0}" released'.format( self.job_id ) )
 
     if not isinstance( data, dict ):
       logging.error( 'handler: result from function was not a dict, got "{0}"({1})'.format( str( data )[ 0:50 ], type( data ).__name__ ) )
@@ -68,7 +62,7 @@ class JobWorker( threading.Thread ):
     logging.debug( 'handler: results of "{0}" with "{1}" is "{2}"'.format( self.function, _hideify( self.paramaters ), data ) )
     response = 'Error'
     while response == 'Error':
-      response = self.contractor.jobResults( self.job_id, data, self.cookie )  # this is after releasing the semaphore so we are not holding things up if it requires retries
+      response = self.contractor.jobResults( self.job_id, data, self.cookie )  # this is after releasing the semaphore so we are not holding things up if sending the results requires retries
       logging.info( 'handler: job "{0}" complete, contractor said "{1}"'.format( self.job_id, response ) )
       if response == 'Accepted':
         break
@@ -77,7 +71,7 @@ class JobWorker( threading.Thread ):
         raise Exception( 'Unknown jobResults response "{0}"'.format( response ) )
 
       logging.debug( 'handler: Contractor said it had an error, sleeping before trying again...' )
-      time.sleep( 60 )
+      asyncio.sleep( 60 )
 
 
 class Handler():
@@ -86,13 +80,13 @@ class Handler():
     self.contractor = contractor
     self.max_concurent_jobs = 0  # there is not a semaphore to inforce this, this is used to limit the number of jobs being requested
     self.job_delay = 5
-    self.job_queue = []
     self.module_map = {}
     self.semaphore_map = {}
+    self.task_list = []
 
   @property
   def empty_slots( self ):
-    return self.max_concurent_jobs - len( self.job_queue )
+    return self.max_concurent_jobs - len( self.task_list )
 
   @property
   def module_list( self ):
@@ -103,7 +97,7 @@ class Handler():
 
     logging.info( 'handler: registering module "{0}" with limit "{1}"...'.format( module.MODULE_NAME, limit ) )
     self.module_map[ module.MODULE_NAME ] = module.MODULE_FUNCTIONS
-    self.semaphore_map[ module.MODULE_NAME ] = threading.BoundedSemaphore( limit )
+    self.semaphore_map[ module.MODULE_NAME ] = asyncio.Semaphore( limit )
 
   def setLimits( self, job_delay=None, max_concurent_jobs=None ):
     if max_concurent_jobs is not None and ( max_concurent_jobs < 0 or max_concurent_jobs > 100 ):
@@ -137,12 +131,19 @@ class Handler():
         continue
 
       worker = JobWorker( self.contractor, job[ 'cookie' ], job[ 'job_id' ], function, job[ 'paramaters' ], semaphore )
-      worker.start()
+      self.task_list.append( asyncio.create_task( worker.run() ) )
+
+  def checkTasks( self ):
+    logging.debug( 'handler: curenly have {0} tasks'.format( len( self.task_list ) ) )
+    for i in range( len( self.task_list ) - 1, -1, -1 ):
+      if self.task_list[ i ].done:
+        logging.debug( 'handler: task "{0}" is done.'.format( i ) )
+        del self.task_list[ i ]
 
   def wait( self ):
-    while len( threading.enumerate() ) > 1:
-      logging.info( 'handler: Waiting for {0} workers to finish'.format( len( threading.enumerate() ) - 1 ) )
-      time.sleep( 2 )
+    while self.task_list:
+      asyncio.sleep( 2 )
+      self.checkTasks()
 
   def logStatus( self ):
     for module_name in self.module_map:

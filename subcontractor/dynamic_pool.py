@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from asyncio import Semaphore
 
 from pydhcplib.type_ipv4 import ipv4
@@ -19,18 +19,17 @@ class DynamicPool():
     self.lease_delta = timedelta( seconds=lease_time )
     self.address_map_lock = Semaphore()
 
-  def update_paramaters( self, gateway, netmask, dns_server, domain_name, address_list ):
+  async def update_paramaters( self, gateway, netmask, dns_server, domain_name, address_list ):
     self.netmask = ipv4( netmask ).list()
     self.gateway = ipv4( gateway ).list() if gateway is not None else None
     self.domain_name = strlist( domain_name ).list()
     self.dns_server = ipv4( dns_server ).list()
 
-    self._update_address_list( address_list )
+    await self._update_address_list( address_list )
 
-  def lookup( self, mac, assign ):
+  async def lookup( self, mac, assign ):
     address = None
-    self.address_map_lock.acquire()
-    try:
+    async with self.address_map_lock:
       for key, value in self.address_map.items():
         if value == mac:
           address = key
@@ -43,48 +42,38 @@ class DynamicPool():
             self.address_map[ address ] = mac
             break
 
-    finally:
-      self.address_map_lock.release()
-
     if address is None:
       return None
 
-    self.expires_map[ address ] = self.lease_delta + datetime.utcnow()
+    self.expires_map[ address ] = self.lease_delta + datetime.now( UTC )
 
     host_name = 'dynamic_{0}'.format( address )
     return ( ipv4( address ).list(), self.netmask, self.gateway, self.mtu, self.vlan, self.dns_server, strlist( host_name ).list(), self.domain_name, None, self.console, self.lease_time )
 
-  def release( self, mac ):
+  async def release( self, mac ):
     address = None
-    self.address_map_lock.acquire()
-    try:
+    async with self.address_map_lock:
       for key, value in self.address_map.items():
         if value == mac:
           address = key
           break
-    finally:
-      self.address_map_lock.release()
 
     if address is None:
       return
 
-    self.address_map_lock.acquire()
-    try:
+    async with self.address_map_lock:
       self.address_map[ address ] = None
       self.expires_map[ address ] = None
-    finally:
-      self.address_map_lock.release()
 
     return
 
-  def decline( self, mac ):
-    self.release( mac )
+  async def decline( self, mac ):
+    await self.release( mac )
 
   # Update the addresslist to the specified list, anything not in the new list will be removed
   # any new entries will be added
-  def _update_address_list( self, address_list ):
-    self.address_map_lock.acquire()
-    try:
+  async def _update_address_list( self, address_list ):
+    async with self.address_map_lock:
       add_list = set( address_list ) - set( self.address_map.keys() )
       remove_list = set( self.address_map.keys() ) - set( address_list )
 
@@ -103,12 +92,8 @@ class DynamicPool():
         except KeyError:
           pass
 
-    finally:
-      self.address_map_lock.release()
-
-  def cleanup( self ):
-    self.address_map_lock.acquire()
-    try:
+  async def cleanup( self ):
+    async with self.address_map_lock:
       address_list = set( self.address_map.keys() )
 
       # make sure there are no mac nor expires for addresses that do not exist
@@ -116,14 +101,11 @@ class DynamicPool():
         del self.expires_map[ item ]
 
       # look for expires values that are in the past
-      now = datetime.utcnow()
+      now = datetime.now( UTC )
       for address in self.expires_map.keys():
         if self.expires_map[ address ] is not None and self.expires_map[ address ] < now:
           self.expires_map[ address ] = None
           self.address_map[ address ] = None
-
-    finally:
-      self.address_map_lock.release()
 
   def summary( self ):
     result = {}

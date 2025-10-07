@@ -1,5 +1,4 @@
 import logging
-import threading
 import pickle
 
 from pydhcplib.dhcp_network import DhcpServer
@@ -11,7 +10,7 @@ from pydhcplib.type_hwmac import hwmac
 from pydhcplib.interface import interface
 
 
-class DHCPd( DhcpServer, threading.Thread  ):
+class DHCPd( DhcpServer ):
   def __init__( self, listen_interface, listen_address, tftp_server ):
     super().__init__( listen_interface, listen_address, 68, 67 )
     iface = interface()
@@ -100,13 +99,13 @@ class DHCPd( DhcpServer, threading.Thread  ):
 
       reply.SetOption( 'file', boot_file + [ 0 ] * ( 128 - len( boot_file  ) ) )
 
-  def HandleDhcpDiscover( self, request ):
+  async def HandleDhcpDiscover( self, request ):
     logging.debug( 'DHCPd: Recieved Discover:\n{0}'.format( request.str() ) )
     mac = hwmac( request.GetHardwareAddress() ).str()
     logging.info( 'DHCPd: Recieved Discover from "{0}"'.format( mac ) )
 
     for name in self.pool_order:
-      item = self.pool_map[ name ].lookup( mac, True )
+      item = await self.pool_map[ name ].lookup( mac, True )
       if item is not None:
         break
 
@@ -122,13 +121,13 @@ class DHCPd( DhcpServer, threading.Thread  ):
     logging.debug( 'DHCPd: Sending Offer:\n{0}'.format( reply.str() ) )
     self.SendDhcpPacket( request, reply )
 
-  def HandleDhcpRequest( self, request ):
+  async def HandleDhcpRequest( self, request ):
     logging.debug( 'DHCPd: Received Request:\n{0}'.format( request.str() ) )
     mac = hwmac( request.GetHardwareAddress() ).str()
     logging.info( 'DHCPd: Recieved Request from "{0}"'.format( mac ) )
 
     for name in self.pool_order:
-      item = self.pool_map[ name ].lookup( mac, True )
+      item = await self.pool_map[ name ].lookup( mac, True )
       if item is not None:
         break
 
@@ -144,21 +143,21 @@ class DHCPd( DhcpServer, threading.Thread  ):
     logging.debug( 'DHCPd: Sending Ack:\n{0}'.format( reply.str() ) )
     self.SendDhcpPacket( request, reply )
 
-  def HandleDhcpDecline( self, request ):
+  async def HandleDhcpDecline( self, request ):
     logging.debug( 'DHCPd: Revieved Decline:\n{0}'.format( request.str() ) )
     mac = hwmac( request.GetHardwareAddress() ).str()
     logging.info( 'DHCPd: Recieved Decline from "{0}"'.format( mac ) )
 
     for pool in self.pool_map.values():
-      pool.decline( mac )
+      await pool.decline( mac )
 
-  def HandleDhcpRelease( self, request ):
+  async def HandleDhcpRelease( self, request ):
     logging.debug( 'DHCPd: Recieved Release:\n{0}'.format( request.str() ) )
     mac = hwmac( request.GetHardwareAddress() ).str()
     logging.info( 'DHCPd: Recieved Release from "{0}"'.format( mac ) )
 
     for pool in self.pool_map.values():
-      pool.release( mac )
+      await pool.release( mac )
 
   @property
   def pool_names( self ):
@@ -175,9 +174,9 @@ class DHCPd( DhcpServer, threading.Thread  ):
   def get_pool( self, name ):
     return self.pool_map[ name ]
 
-  def cleanup( self ):
+  async def cleanup( self ):
     for pool in self.pool_map.values():
-      pool.cleanup()
+      await pool.cleanup()
 
   def save_cache( self, filepath ):
     cache = {}
@@ -199,11 +198,14 @@ class DHCPd( DhcpServer, threading.Thread  ):
       except KeyError:
         pass
 
-  def run( self ):
+  async def run( self ):
+    logging.debug( 'DHCPd: Running...' )
     while self.cont:
-      self.GetNextDhcpPacket( timeout=5 )
+      await self.GetNextDhcpPacket( timeout=10 )
+    logging.debug( 'DHCPd: Done' )
 
   def stop( self ):
+    logging.debug( 'DHCPd: Stopping...' )
     self.cont = False
 
   def summary( self ):
