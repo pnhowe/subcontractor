@@ -67,7 +67,7 @@ class Main( Daemon ):
         pass
 
     logging.info( 'Waiting for Jobs to Finish...' )
-    self.handler.wait()
+    await self.handler.wait()
     logging.info( 'Done.' )
 
   def stop( self ):

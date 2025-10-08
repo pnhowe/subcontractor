@@ -140,9 +140,9 @@ class Handler():
         logging.debug( 'handler: task "{0}" is done.'.format( i ) )
         del self.task_list[ i ]
 
-  def wait( self ):
+  async def wait( self ):
     while self.task_list:
-      asyncio.sleep( 2 )
+      await asyncio.sleep( 2 )
       self.checkTasks()
 
   def logStatus( self ):
