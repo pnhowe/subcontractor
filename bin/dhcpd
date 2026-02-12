@@ -6,7 +6,6 @@ import asyncio
 from asyncio.exceptions import CancelledError
 
 from subcontractor.daemon import Daemon
-from subcontractor.contractor import Contractor
 from subcontractor.dhcpd import DHCPd
 from subcontractor.dynamic_pool import DynamicPool
 from subcontractor.static_pool import StaticPool
@@ -18,27 +17,13 @@ class Main( Daemon ):  # TODO: cache to local cache file
   def __init__( self, *args, **kwargs ):
     super().__init__( 'subcontractor', *args, **kwargs )
     self.cache_file = None
-    self.contractor = None
-    self.site = None
-    self.stop_event = asyncio.Event()
     self.handler = None
     self.dhcpd = None
     self.static_pool = None
 
-  def config( self, config ):
+  def config( self, config, contractor ):
+    logging.debug( 'configuring dhcpd...' )
     self.cache_file = config.get( 'dhcpd', 'cache_file' )
-    self.site = config.get( 'subcontractor', 'site' )
-    host = config.get( 'contractor', 'host' )
-    proxy = config.get( 'contractor', 'proxy', fallback=None )
-    if not proxy:
-      proxy = None
-
-    self.contractor = Contractor( self.site, host=host, root_path='/api/v1/', proxy=proxy, stop_event=self.stop_event )
-    item = self.contractor.getSite()
-    if item is None:
-      raise ValueError( 'site "{0}" does not exist'.format( self.site ) )
-
-    logging.info( 'working with site "{0}"({1})'.format( item[ 'description' ], item[ 'name' ] ) )
 
     self.static_lease_time = config.getint( 'dhcpd', 'static_lease_time' )
     self.dynamic_lease_time = config.getint( 'dhcpd', 'dynamic_lease_time' )
@@ -63,7 +48,7 @@ class Main( Daemon ):  # TODO: cache to local cache file
     if self.static_pool is None:
       self.static_pool = StaticPool( self.static_lease_time )
 
-  async def main( self ):
+  async def main( self, stop_event, contractor ):
     logging.info( 'Starting DHCP Server...' )
     self.dhcpd = DHCPd( self.listen_interface, self.listen_address, self.tftp_server )
     if os.path.isfile( self.cache_file ):
@@ -71,9 +56,9 @@ class Main( Daemon ):  # TODO: cache to local cache file
     self.dhcpd.add_pool( self.static_pool, '__static__' )  # static pools need to be added first so they are searched first
     dhcp_server_task = asyncio.create_task( self.dhcpd.run() )
     logging.info( 'Running...' )
-    while not self.stop_event.is_set() and not dhcp_server_task.done():
+    while not stop_event.is_set() and not dhcp_server_task.done():
       try:
-        dynamic_pool_list = self.contractor.getDHCPdDynamidPools()
+        dynamic_pool_list = await contractor.getDHCPdDynamidPools()
         pool_names = [ '__static__' ]
 
         for dynamic_pool in dynamic_pool_list:
@@ -87,7 +72,7 @@ class Main( Daemon ):  # TODO: cache to local cache file
           else:
             await self.dhcpd.get_pool( name ).update_paramaters( dynamic_pool[ 'gateway' ], dynamic_pool[ 'netmask' ], dynamic_pool[ 'dns_server' ], dynamic_pool[ 'domain_name' ], dynamic_pool[ 'address_list' ] )
 
-        self.static_pool.update( self.contractor.getDHCPdStaticPools() )
+        self.static_pool.update( await contractor.getDHCPdStaticPools() )
 
         for name in set( self.dhcpd.pool_names ) - set( pool_names ):
           self.dhcpd.del_pool( name )
@@ -99,18 +84,18 @@ class Main( Daemon ):  # TODO: cache to local cache file
 
         logging.debug( 'Sleeping for "{0}"...'.format( self.poll_interval ) )
         try:
-          await asyncio.wait_for( self.stop_event.wait(), self.poll_interval )
+          await asyncio.wait_for( stop_event.wait(), self.poll_interval )
         except asyncio.TimeoutError:
           pass
 
       except Exception:
         logging.exception( 'Exception occured during main loop, stopping!' )
-        self.stop_event.set()
+        stop_event.set()
 
     logging.info( 'Stopping...' )
     self.dhcpd.stop()
-    if not self.stop_event.is_set():
-      self.stop_event.set()
+    if not stop_event.is_set():
+      stop_event.set()
 
     try:
       if not dhcp_server_task.done():
@@ -130,7 +115,6 @@ class Main( Daemon ):  # TODO: cache to local cache file
 
   def stop( self ):
     logging.info( 'Got Stop Signal' )
-    self.stop_event.set()
     if self.dhcpd is not None:
       self.dhcpd.stop()
 

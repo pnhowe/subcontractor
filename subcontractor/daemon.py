@@ -8,6 +8,7 @@ import pwd
 import asyncio
 from logging.handlers import SysLogHandler
 from logging import StreamHandler
+from subcontractor.contractor import Contractor
 
 
 class ColorizerStreamHandler( StreamHandler ):  # ANSI coloring, really should detect if it's an ANSI screen first
@@ -34,20 +35,26 @@ class Daemon():
   def __init__( self, name ):
     super().__init__()
     self.name = name
+    self.stop_event = asyncio.Event()
     self.pid_file = None
 
-  def config( self, config ):  # override
+  def config( self, config, contractor ):  # override
     pass
 
   def stop( self ):  # override
     pass
 
-  async def main( self ):  # override
+  async def main( self, stop_event, contractor ):  # override
     pass
 
   async def start_main( self, config, args ):
     logging.debug( 'daemon: loading config...' )
-    self.config( config )
+
+    site = config.get( 'subcontractor', 'site' )
+    host = config.get( 'contractor', 'host' )
+    proxy = config.get( 'contractor', 'proxy', fallback=None )
+    if not proxy:
+      proxy = None
 
     if args.user is not None:
       logging.debug( 'daemon: changing to user "{0}"...'.format( args.user ) )
@@ -58,9 +65,19 @@ class Daemon():
     loop.add_signal_handler( signal.SIGQUIT, self._sigHandlerStop )
     loop.add_signal_handler( signal.SIGTERM, self._sigHandlerStop )
 
-    logging.debug( 'daemon: starting main function...' )
-    await self.main()
-    logging.debug( 'daemon: main completed' )
+    logging.debug( 'daemon: connecting to contractor...' )
+    async with Contractor( site, host=host, root_path='/api/v1/', proxy=proxy, stop_event=self.stop_event ) as contractor:
+      self.config( config, contractor )
+
+      item = await contractor.getSite()
+      if item is None:
+        raise ValueError( 'site "{0}" does not exist'.format( site ) )
+
+      logging.info( 'working with site "{0}"({1})'.format( item[ 'description' ], item[ 'name' ] ) )
+
+      logging.debug( 'daemon: starting main function...' )
+      await self.main( self.stop_event, contractor )
+      logging.debug( 'daemon: main completed' )
 
   def run( self ):
     parser = argparse.ArgumentParser( description=self.name )
@@ -93,6 +110,7 @@ class Daemon():
     if args.debug:
       logger.setLevel( logging.DEBUG )
       logging.getLogger( 'asyncio' ).setLevel( logging.WARNING )
+      logging.getLogger( 'httpcore' ).setLevel( logging.WARNING )
     elif args.info:
       logger.setLevel( logging.INFO )
     else:
@@ -171,6 +189,7 @@ class Daemon():
 
   def _sigHandlerStop( self ):
     logging.info( 'daemon: got stop signal' )
+    self.stop_event.set()
     self.stop()
 
   def _daemonize( self ):

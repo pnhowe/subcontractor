@@ -50,19 +50,19 @@ class JobWorker():
         data = self.function( self.paramaters )
       except Exception as e:
         logging.exception( 'handler: Exception with function "{0}" paramaters "{1}"'.format( self.function, _hideify( self.paramaters ) ) )
-        self.contractor.jobError( self.job_id, 'Unhandled Exception "{0}"({1})'.format( e, type( e ).__name__ ), self.cookie )
+        await self.contractor.jobError( self.job_id, 'Unhandled Exception "{0}"({1})'.format( e, type( e ).__name__ ), self.cookie )
         return
 
     logging.debug( 'handler: lock for "{0}" released'.format( self.job_id ) )
 
     if not isinstance( data, dict ):
       logging.error( 'handler: result from function was not a dict, got "{0}"({1})'.format( str( data )[ 0:50 ], type( data ).__name__ ) )
-      self.contractor.jobError( self.job_id, 'result was not a dict, got "{0}"({1})'.format( data, type( data ).__name__ ), self.cookie )
+      await self.contractor.jobError( self.job_id, 'result was not a dict, got "{0}"({1})'.format( data, type( data ).__name__ ), self.cookie )
 
     logging.debug( 'handler: results of "{0}" with "{1}" is "{2}"'.format( self.function, _hideify( self.paramaters ), data ) )
     response = 'Error'
     while response == 'Error':
-      response = self.contractor.jobResults( self.job_id, data, self.cookie )  # this is after releasing the semaphore so we are not holding things up if sending the results requires retries
+      response = await self.contractor.jobResults( self.job_id, data, self.cookie )  # this is after releasing the semaphore so we are not holding things up if sending the results requires retries
       logging.info( 'handler: job "{0}" complete, contractor said "{1}"'.format( self.job_id, response ) )
       if response == 'Accepted':
         break
