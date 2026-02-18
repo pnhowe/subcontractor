@@ -1,3 +1,47 @@
+subcontractor (0.12.3-1) noble; urgency=medium
+
+  * Moved from threading to async
+
+ -- Peter Howe <pnhowe@gmail.com>  Tue, 07 Oct 2025 11:01:30 -0600
+
+subcontractor (0.12.2-1) noble; urgency=medium
+
+  * systemd service and default config tweeks
+
+ -- Peter Howe <pnhowe@gmail.com>  Wed, 24 Sep 2025 09:27:05 -0600
+
+subcontractor (0.12.1-1) noble; urgency=medium
+
+  * Color console logging
+
+ -- Peter Howe <pnhowe@gmail.com>  Sat, 06 Nov 2021 06:28:22 -0600
+
+subcontractor (0.11.0-1) focal; urgency=medium
+
+  * added packet and redfish
+
+ -- Peter Howe <pnhowe@gmail.com>  Wed, 22 Sep 2021 13:56:05 -0600
+
+subcontractor (0.10.0-1) focal; urgency=medium
+
+  * session handeling
+
+ -- Peter Howe <pnhowe@gmail.com>  Thu, 24 Jun 2021 14:40:51 -0600
+
+subcontractor (0.9.0-1) bionic; urgency=medium
+
+  * now using cinp's retrys
+
+ -- Peter Howe <pnhowe@gmail.com>  Thu, 24 Jun 2021 12:34:23 -0600
+
+subcontractor (0.8.0-1) bionic; urgency=medium
+
+  * Mmoved to Bionic
+  * Goes with contractor 0.8.0
+  * Fixes
+
+ -- Peter Howe <pnhowe@gmail.com>  Mon, 16 Mar 2020 22:20:50 -0600
+
 subcontractor (0.6.2-1) xenial; urgency=medium
 
   * DHCPd now caches state to local cache

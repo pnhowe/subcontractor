@@ -5,7 +5,28 @@ import argparse
 import logging
 import configparser
 import pwd
+import asyncio
 from logging.handlers import SysLogHandler
+from logging import StreamHandler
+from subcontractor.contractor import Contractor
+
+
+class ColorizerStreamHandler( StreamHandler ):  # ANSI coloring, really should detect if it's an ANSI screen first
+  def emit( self, record ):
+    levelname_save = record.levelname
+    levelno = record.levelno
+    if levelno >= logging.ERROR:
+      color = 31  # red
+    elif levelno >= logging.WARNING:
+      color = 33  # yellow
+    elif levelno >= logging.INFO:
+      color = 32  # green
+    else:
+      color = 34  # blue
+
+    record.levelname = '\033[{0}m{1}\033[0m'.format( color, record.levelname )
+    super().emit( record )
+    record.levelname = levelname_save
 
 
 class Daemon():
@@ -14,16 +35,49 @@ class Daemon():
   def __init__( self, name ):
     super().__init__()
     self.name = name
+    self.stop_event = asyncio.Event()
     self.pid_file = None
 
-  def config( self, config ):  # override
+  def config( self, config, contractor ):  # override
     pass
 
   def stop( self ):  # override
     pass
 
-  def main( self ):  # override
+  async def main( self, stop_event, contractor ):  # override
     pass
+
+  async def start_main( self, config, args ):
+    logging.debug( 'daemon: loading config...' )
+
+    site = config.get( 'subcontractor', 'site' )
+    host = config.get( 'contractor', 'host' )
+    proxy = config.get( 'contractor', 'proxy', fallback=None )
+    if not proxy:
+      proxy = None
+
+    if args.user is not None:
+      logging.debug( 'daemon: changing to user "{0}"...'.format( args.user ) )
+      self._change_user( args.user )
+
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler( signal.SIGINT, self._sigHandlerStop )
+    loop.add_signal_handler( signal.SIGQUIT, self._sigHandlerStop )
+    loop.add_signal_handler( signal.SIGTERM, self._sigHandlerStop )
+
+    logging.debug( 'daemon: connecting to contractor...' )
+    async with Contractor( site, host=host, root_path='/api/v1/', proxy=proxy, stop_event=self.stop_event ) as contractor:
+      self.config( config, contractor )
+
+      item = await contractor.getSite()
+      if item is None:
+        raise ValueError( 'site "{0}" does not exist'.format( site ) )
+
+      logging.info( 'working with site "{0}"({1})'.format( item[ 'description' ], item[ 'name' ] ) )
+
+      logging.debug( 'daemon: starting main function...' )
+      await self.main( self.stop_event, contractor )
+      logging.debug( 'daemon: main completed' )
 
   def run( self ):
     parser = argparse.ArgumentParser( description=self.name )
@@ -42,17 +96,21 @@ class Daemon():
 
     self.pid_file = args.pid_file
 
-    logging.basicConfig()
-    logger = logging.getLogger()
-
     if args.action == 'background':  # has to happen before we start logging
-      logger.handlers = []
-      handler = SysLogHandler( address='/dev/log', facility=SysLogHandler.LOG_DAEMON )
-      handler.setFormatter( logging.Formatter( fmt='{0} [%(process)d]: %(message)s'.format( self.name ) ) )
-      logger.addHandler( handler )
+      log_handler = SysLogHandler( address='/dev/log', facility=SysLogHandler.LOG_DAEMON )
+      log_format = '{0} [%(process)d] %(levelname)-8s: %(message)s'.format( self.name )
+
+    else:
+      log_handler = ColorizerStreamHandler( sys.stdout )
+      log_format = '[%(asctime)s] %(levelname)s: %(message)s'
+
+    logging.basicConfig( format=log_format, handlers=[ log_handler ] )
+    logger = logging.getLogger()
 
     if args.debug:
       logger.setLevel( logging.DEBUG )
+      logging.getLogger( 'asyncio' ).setLevel( logging.WARNING )
+      logging.getLogger( 'httpcore' ).setLevel( logging.WARNING )
     elif args.info:
       logger.setLevel( logging.INFO )
     else:
@@ -107,12 +165,6 @@ class Daemon():
     if args.action == 'background':
       self._daemonize()
 
-    self._write_pid_file()
-
-    signal.signal( signal.SIGINT, self._sigHandlerStop )
-    signal.signal( signal.SIGQUIT, self._sigHandlerStop )
-    signal.signal( signal.SIGTERM, self._sigHandlerStop )
-
     logging.debug( 'daemon: loading config from "{0}"...'.format( args.config ) )
     config = configparser.ConfigParser( interpolation=None )
     try:
@@ -123,15 +175,10 @@ class Daemon():
       logging.exception( 'daemon: error parsing configfile: "{0}"'.format( e ) )
       sys.exit( 1 )
 
-    if args.user is not None:
-      self._change_user( args.user )
+    self._write_pid_file()
 
-    self.config( config )
-
-    logging.debug( 'daemon: starting main function...' )
     try:
-      self.main()
-      logging.debug( 'daemon: main completed' )
+      asyncio.run( self.start_main( config, args ) )
     except Exception as e:
       logging.exception( 'daemon: Exception "{0}" while executing main'.format( e ) )
 
@@ -140,8 +187,9 @@ class Daemon():
     logging.debug( 'daemon: done!' )
     logging.shutdown()
 
-  def _sigHandlerStop( self, sig, frame ):
+  def _sigHandlerStop( self ):
     logging.info( 'daemon: got stop signal' )
+    self.stop_event.set()
     self.stop()
 
   def _daemonize( self ):

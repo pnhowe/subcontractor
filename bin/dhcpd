@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+
+import logging
+import os
+import asyncio
+from asyncio.exceptions import CancelledError
+
+from subcontractor.daemon import Daemon
+from subcontractor.dhcpd import DHCPd
+from subcontractor.dynamic_pool import DynamicPool
+from subcontractor.static_pool import StaticPool
+
+
+class Main( Daemon ):  # TODO: cache to local cache file
+  default_config_file = '/etc/subcontractor.conf'
+
+  def __init__( self, *args, **kwargs ):
+    super().__init__( 'subcontractor', *args, **kwargs )
+    self.cache_file = None
+    self.handler = None
+    self.dhcpd = None
+    self.static_pool = None
+
+  def config( self, config, contractor ):
+    logging.debug( 'configuring dhcpd...' )
+    self.cache_file = config.get( 'dhcpd', 'cache_file' )
+
+    self.static_lease_time = config.getint( 'dhcpd', 'static_lease_time' )
+    self.dynamic_lease_time = config.getint( 'dhcpd', 'dynamic_lease_time' )
+    self.poll_interval = config.getint( 'dhcpd', 'poll_interval' )
+    self.listen_interface = config.get( 'dhcpd', 'listen_interface' )
+    self.listen_address = config.get( 'dhcpd', 'listen_address' )
+    self.tftp_server = config.get( 'dhcpd', 'tftp_server' )
+    self.dynamic_mtu = config.get( 'dhcpd', 'dynamic_pool_mtu' )
+    self.dynamic_vlan = config.get( 'dhcpd', 'dynamic_pool_vlan' )
+    self.dynamic_console = config.get( 'dhcpd', 'dynamic_pool_console' )
+    if not self.dynamic_mtu:
+      self.dynamic_mtu = None
+    else:
+      self.dynamic_mtu = int( self.dynamic_mtu )
+      self.dynamic_mtu = [ self.dynamic_mtu >> 8 & 0xFF, self.dynamic_mtu & 0xFF ]
+    if not self.dynamic_vlan:
+      self.dynamic_vlan = None
+    else:
+      self.dynamic_vlan = int( self.dynamic_vlan )
+      self.dynamic_vlan = [ self.dynamic_vlan >> 8 & 0xFF, self.dynamic_vlan & 0xFF ]
+
+    if self.static_pool is None:
+      self.static_pool = StaticPool( self.static_lease_time )
+
+  async def main( self, stop_event, contractor ):
+    logging.info( 'Starting DHCP Server...' )
+    self.dhcpd = DHCPd( self.listen_interface, self.listen_address, self.tftp_server )
+    if os.path.isfile( self.cache_file ):
+      self.dhcpd.load_cache( self.cache_file )
+    self.dhcpd.add_pool( self.static_pool, '__static__' )  # static pools need to be added first so they are searched first
+    dhcp_server_task = asyncio.create_task( self.dhcpd.run() )
+    logging.info( 'Running...' )
+    while not stop_event.is_set() and not dhcp_server_task.done():
+      try:
+        dynamic_pool_list = await contractor.getDHCPdDynamidPools()
+        pool_names = [ '__static__' ]
+
+        for dynamic_pool in dynamic_pool_list:
+          name = dynamic_pool[ 'name' ]
+          pool_names.append( name )
+          if name not in self.dhcpd.pool_names:
+            pool = DynamicPool( self.dynamic_lease_time, self.dynamic_mtu, self.dynamic_vlan, self.dynamic_console )
+            await pool.update_paramaters( dynamic_pool[ 'gateway' ], dynamic_pool[ 'netmask' ], dynamic_pool[ 'dns_server' ], dynamic_pool[ 'domain_name' ], dynamic_pool[ 'address_list' ] )
+            self.dhcpd.add_pool( pool, name )
+
+          else:
+            await self.dhcpd.get_pool( name ).update_paramaters( dynamic_pool[ 'gateway' ], dynamic_pool[ 'netmask' ], dynamic_pool[ 'dns_server' ], dynamic_pool[ 'domain_name' ], dynamic_pool[ 'address_list' ] )
+
+        self.static_pool.update( await contractor.getDHCPdStaticPools() )
+
+        for name in set( self.dhcpd.pool_names ) - set( pool_names ):
+          self.dhcpd.del_pool( name )
+
+        await self.dhcpd.cleanup()
+
+        logging.info( 'Summary: {0}'.format( self.dhcpd.summary() ) )
+        self.dhcpd.save_cache( self.cache_file )
+
+        logging.debug( 'Sleeping for "{0}"...'.format( self.poll_interval ) )
+        try:
+          await asyncio.wait_for( stop_event.wait(), self.poll_interval )
+        except asyncio.TimeoutError:
+          pass
+
+      except Exception:
+        logging.exception( 'Exception occured during main loop, stopping!' )
+        stop_event.set()
+
+    logging.info( 'Stopping...' )
+    self.dhcpd.stop()
+    if not stop_event.is_set():
+      stop_event.set()
+
+    try:
+      if not dhcp_server_task.done():
+        logging.info( 'Stopping DHCP server...' )
+        dhcp_server_task.cancel()
+        logging.info( 'Waiting for DHCP server...' )
+        try:
+          await dhcp_server_task
+        except CancelledError:
+          pass
+    except Exception:
+      logging.exception( 'Exception stopping DHCP server!' )
+
+    logging.info( 'Saving Cache...' )
+    self.dhcpd.save_cache( self.cache_file )
+    logging.info( 'Done.' )
+
+  def stop( self ):
+    logging.info( 'Got Stop Signal' )
+    if self.dhcpd is not None:
+      self.dhcpd.stop()
+
+
+if __name__ == '__main__':
+  Main().run()

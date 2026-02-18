@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+
+import logging
+import asyncio
+
+from subcontractor.daemon import Daemon
+from subcontractor.handler import Handler
+from subcontractor.credentials import setup
+
+
+class Main( Daemon ):
+  default_config_file = '/etc/subcontractor.conf'
+
+  def __init__( self, *args, **kwargs ):
+    super().__init__( 'subcontractor', *args, **kwargs )
+    self.handler = None
+
+  def config( self, config, contractor ):
+    logging.debug( 'configuring subcontractor...' )
+    setup( config )
+
+    self.poll_interval = config.getint( 'subcontractor', 'poll_interval' )
+    self.max_job_request_size = config.getint( 'subcontractor', 'max_job_request_size' )
+    self.handler = Handler( contractor )
+    self.handler.setLimits( job_delay=config.getint( 'subcontractor', 'job_delay' ), max_concurent_jobs=config.getint( 'subcontractor', 'max_concurent_jobs' ) )
+    for ( name, limit ) in config.items( 'modules' ):
+      try:
+        limit = int( limit )
+      except ValueError:
+        logging.error( 'invalid limit "{0}" for module "{1}"'.format( limit, name ) )
+
+      if limit < 1:
+        continue
+
+      logging.info( 'loading module "{0}" with limit "{1}"...'.format( name, limit ) )
+
+      self.handler.registerModule( name, limit )
+
+    contractor.setModuleList( self.handler.module_list )
+
+  async def main( self, stop_event, contractor ):
+    logging.info( 'running...' )
+    while not stop_event.is_set():
+      self.handler.logStatus()
+      self.handler.checkTasks()
+      self.handler.addJobs( await contractor.getJobs( min( self.handler.empty_slots, self.max_job_request_size ) ) )
+      logging.debug( 'Sleeping for "{0}"...'.format( self.poll_interval ) )
+      try:
+        await asyncio.wait_for( stop_event.wait(), self.poll_interval )
+      except asyncio.TimeoutError:
+        pass
+
+    logging.info( 'Waiting for Jobs to Finish...' )
+    await self.handler.wait()
+    logging.info( 'Done.' )
+
+  def stop( self ):
+    pass
+
+
+if __name__ == '__main__':
+  Main().run()

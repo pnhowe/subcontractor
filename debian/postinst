@@ -20,6 +20,11 @@ set -e
 
 case "$1" in
     configure)
+        if [ ! -f /etc/subcontractor.conf ] ;
+        then
+          cp /etc/subcontractor.conf.sample /etc/subcontractor.conf
+        fi
+
         rm -f /var/run/dhcpd.cache
     ;;
 

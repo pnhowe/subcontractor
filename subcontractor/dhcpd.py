@@ -1,5 +1,4 @@
 import logging
-import threading
 import pickle
 
 from pydhcplib.dhcp_network import DhcpServer
@@ -11,7 +10,7 @@ from pydhcplib.type_hwmac import hwmac
 from pydhcplib.interface import interface
 
 
-class DHCPd( DhcpServer, threading.Thread  ):
+class DHCPd( DhcpServer ):
   def __init__( self, listen_interface, listen_address, tftp_server ):
     super().__init__( listen_interface, listen_address, 68, 67 )
     iface = interface()
@@ -25,10 +24,11 @@ class DHCPd( DhcpServer, threading.Thread  ):
     self.dhcp_server_ip = ipv4( iface.getAddr( listen_interface ) ).list()
 
   def setOptions( self, request, reply, item ):
-    address, netmask, gateway, dns_server, host_name, domain_name, boot_file, lease_time = item
+    address, netmask, gateway, mtu, vlan, dns_server, host_name, domain_name, config_uuid, console, lease_time = item
 
     parameter_request_list = request.GetOption( 'parameter_request_list' )
     user_class = strlist( request.GetOption( 'user_class' ) ).str()
+    architecture = request.GetOption( 'client_system' )
 
     reply.SetOption( 'server_identifier', self.dhcp_server_ip )
     reply.SetOption( 'ip_address_lease_time', lease_time )
@@ -47,20 +47,65 @@ class DHCPd( DhcpServer, threading.Thread  ):
     if dns_server:
       reply.SetOption( 'domain_name_server', dns_server )
 
+    if mtu is not None:
+      reply.SetOption( 'interface_mtu', mtu )
+
+    if vlan is not None:
+      reply.SetOption( 'vlan', vlan )
+
+    if config_uuid:
+      reply.SetOption( 'config_file', config_uuid )
+
     if user_class == 'iPXE':
       reply.SetOption( 'ipxe.no-pxedhcp', [ 1 ] )  # disable iPXE's waiting on proxy DHCP
 
-    if DhcpOptions[ 'bootfile_name' ] in parameter_request_list and len( boot_file ) > 0:
+    if DhcpOptions[ 'bootfile_name' ] in parameter_request_list and console is not None:
       reply.SetOption( 'siaddr', self.tftp_server )
+      try:
+        architecture = int( architecture[0] << 8 ) + int( architecture[1] )
+      except IndexError:
+        architecture = 0
+
+      # see https://www.iana.org/assignments/dhcpv6-parameters/dhcpv6-parameters.xhtml#processor-architecture
+      if architecture == 7:  # x64 UEFI
+        boot_file = strlist( '{0}.efi'.format( console ) ).list()
+      # elif architecture == 6: # x86 UEFI
+      #   boot_file = strlist( '{0}.efi'.format( console ) ).list()
+      # elif architecture == 10: # ARM 32bit UEFI
+      #   boot_file = strlist( '{0}.efi'.format( console ) ).list()
+      # elif architecture == 11: # ARM 64bit UEFI
+      #   boot_file = strlist( '{0}.efi'.format( console ) ).list()
+      else:  # 0 = x86 BIOS
+        boot_file = strlist( '{0}.kpxe'.format( console ) ).list()
+
+      # match if substring (option vendor-class-identifier, 0, 9) = "PXEClient";
+      # next-server 192.168.111.1;
+      # filename "/bootx64.efi";
+
+      # match if substring (option vendor-class-identifier, 0, 10) = "HTTPClient";
+      # option vendor-class-identifier "HTTPClient";
+      # filename "http://www.httpboot.local/sle/EFI/BOOT/bootx64.efi";
+
+      # Architecture Type (hexadecimal) 	Architecture Name
+      # 00:06 	x86 UEFI TFTP
+      # 00:07 	x86-64 UEFI TFTP
+      # 00:0f 	x86 UEFI HTTP
+      # 00:10 	x86-64 UEFI HTTP
+      # 00:0a 	ARM 32 UEFI
+      # 00:0b 	ARM 64 UEFI
+      # 00:12 	arm 32 UEFI HTTP
+      # 00:13 	arm 64 UEFI HTTP
+      # (undefined/other) 	Legacy x86 PXE
+
       reply.SetOption( 'file', boot_file + [ 0 ] * ( 128 - len( boot_file  ) ) )
 
-  def HandleDhcpDiscover( self, request ):
+  async def HandleDhcpDiscover( self, request ):
     logging.debug( 'DHCPd: Recieved Discover:\n{0}'.format( request.str() ) )
     mac = hwmac( request.GetHardwareAddress() ).str()
     logging.info( 'DHCPd: Recieved Discover from "{0}"'.format( mac ) )
 
     for name in self.pool_order:
-      item = self.pool_map[ name ].lookup( mac, True )
+      item = await self.pool_map[ name ].lookup( mac, True )
       if item is not None:
         break
 
@@ -76,13 +121,13 @@ class DHCPd( DhcpServer, threading.Thread  ):
     logging.debug( 'DHCPd: Sending Offer:\n{0}'.format( reply.str() ) )
     self.SendDhcpPacket( request, reply )
 
-  def HandleDhcpRequest( self, request ):
+  async def HandleDhcpRequest( self, request ):
     logging.debug( 'DHCPd: Received Request:\n{0}'.format( request.str() ) )
     mac = hwmac( request.GetHardwareAddress() ).str()
     logging.info( 'DHCPd: Recieved Request from "{0}"'.format( mac ) )
 
     for name in self.pool_order:
-      item = self.pool_map[ name ].lookup( mac, True )
+      item = await self.pool_map[ name ].lookup( mac, True )
       if item is not None:
         break
 
@@ -98,21 +143,21 @@ class DHCPd( DhcpServer, threading.Thread  ):
     logging.debug( 'DHCPd: Sending Ack:\n{0}'.format( reply.str() ) )
     self.SendDhcpPacket( request, reply )
 
-  def HandleDhcpDecline( self, request ):
+  async def HandleDhcpDecline( self, request ):
     logging.debug( 'DHCPd: Revieved Decline:\n{0}'.format( request.str() ) )
     mac = hwmac( request.GetHardwareAddress() ).str()
     logging.info( 'DHCPd: Recieved Decline from "{0}"'.format( mac ) )
 
     for pool in self.pool_map.values():
-      pool.decline( mac )
+      await pool.decline( mac )
 
-  def HandleDhcpRelease( self, request ):
+  async def HandleDhcpRelease( self, request ):
     logging.debug( 'DHCPd: Recieved Release:\n{0}'.format( request.str() ) )
     mac = hwmac( request.GetHardwareAddress() ).str()
     logging.info( 'DHCPd: Recieved Release from "{0}"'.format( mac ) )
 
     for pool in self.pool_map.values():
-      pool.release( mac )
+      await pool.release( mac )
 
   @property
   def pool_names( self ):
@@ -129,9 +174,9 @@ class DHCPd( DhcpServer, threading.Thread  ):
   def get_pool( self, name ):
     return self.pool_map[ name ]
 
-  def cleanup( self ):
+  async def cleanup( self ):
     for pool in self.pool_map.values():
-      pool.cleanup()
+      await pool.cleanup()
 
   def save_cache( self, filepath ):
     cache = {}
@@ -153,11 +198,14 @@ class DHCPd( DhcpServer, threading.Thread  ):
       except KeyError:
         pass
 
-  def run( self ):
+  async def run( self ):
+    logging.debug( 'DHCPd: Running...' )
     while self.cont:
-      self.GetNextDhcpPacket( timeout=5 )
+      await self.GetNextDhcpPacket( timeout=10 )
+    logging.debug( 'DHCPd: Done' )
 
   def stop( self ):
+    logging.debug( 'DHCPd: Stopping...' )
     self.cont = False
 
   def summary( self ):
