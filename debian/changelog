@@ -1,3 +1,10 @@
+subcontractor (0.20.0-1) noble; urgency=medium
+
+  * Align version with contractor
+  * new cinp with async
+
+ -- Peter Howe <pnhowe@gmail.com>  Thu, 19 Feb 2026 07:35:49 -0700
+
 subcontractor (0.12.3-1) noble; urgency=medium
 
   * Moved from threading to async
