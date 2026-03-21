@@ -111,6 +111,7 @@ class Daemon():
       logger.setLevel( logging.DEBUG )
       logging.getLogger( 'asyncio' ).setLevel( logging.WARNING )
       logging.getLogger( 'httpcore' ).setLevel( logging.WARNING )
+      logging.getLogger( 'zeep' ).setLevel( logging.WARNING )  # this should go in their respective subcontractor plugins, but the plugin does not have an global init
     elif args.info:
       logger.setLevel( logging.INFO )
     else:

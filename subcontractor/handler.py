@@ -2,6 +2,7 @@ import logging
 import hashlib
 import copy
 import asyncio
+import inspect
 from importlib import import_module
 
 
@@ -48,6 +49,8 @@ class JobWorker():
       logging.debug( 'handler: starting job "{0}" with "{1}"'.format( self.function, _hideify( self.paramaters ) ) )
       try:
         data = self.function( self.paramaters )
+        if inspect.isawaitable( data ):
+          data = await data
       except Exception as e:
         logging.exception( 'handler: Exception with function "{0}" paramaters "{1}"'.format( self.function, _hideify( self.paramaters ) ) )
         await self.contractor.jobError( self.job_id, 'Unhandled Exception "{0}"({1})'.format( e, type( e ).__name__ ), self.cookie )
