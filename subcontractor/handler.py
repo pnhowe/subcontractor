@@ -3,6 +3,7 @@ import hashlib
 import copy
 import asyncio
 import inspect
+import traceback
 from importlib import import_module
 
 
@@ -27,32 +28,34 @@ def _hideify_internal( salt, value_map ):
   return value_map
 
 
-def _hideify( paramaters ):
+def _hideify( parameters ):
   salt = 'salt'  # TODO: get a random something, or does it matter if/how often this changes?
 
-  return _hideify_internal( salt, copy.copy( paramaters ) )
+  return _hideify_internal( salt, copy.copy( parameters ) )
 
 
 class JobWorker():
-  def __init__( self, contractor, cookie, job_id, function, paramaters, semaphore ):
+  def __init__( self, contractor, cookie, job_id, function, parameters, semaphore ):
     super().__init__()
     self.contractor = contractor
     self.cookie = cookie
     self.job_id = job_id
     self.function = function
-    self.paramaters = paramaters
+    self.parameters = parameters
     self.semaphore = semaphore
 
   async def run( self ):
     logging.debug( 'handler: acquring lock for "{0}"...'.format( self.job_id ) )
     async with self.semaphore:
-      logging.debug( 'handler: starting job "{0}" with "{1}"'.format( self.function, _hideify( self.paramaters ) ) )
+      logging.debug( 'handler: starting job "{0}" with "{1}"'.format( self.function, _hideify( self.parameters ) ) )
       try:
-        data = self.function( self.paramaters )
-        if inspect.isawaitable( data ):
-          data = await data
+        if inspect.iscoroutinefunction( self.function ):
+          data = await self.function( self.parameters )
+        else:
+          data = self.function( self.parameters )
       except Exception as e:
-        logging.exception( 'handler: Exception with function "{0}" paramaters "{1}"'.format( self.function, _hideify( self.paramaters ) ) )
+        tb_str = ''.join( traceback.format_exception( type( e ), e, e.__traceback__.tb_next ) )
+        logging.error( 'handler: Exception with function "{0}" parameters "{1}"\n{2}'.format( self.function, _hideify( self.parameters ), tb_str.rstrip() ) )
         await self.contractor.jobError( self.job_id, 'Unhandled Exception "{0}"({1})'.format( e, type( e ).__name__ ), self.cookie )
         return
 
@@ -62,7 +65,7 @@ class JobWorker():
       logging.error( 'handler: result from function was not a dict, got "{0}"({1})'.format( str( data )[ 0:50 ], type( data ).__name__ ) )
       await self.contractor.jobError( self.job_id, 'result was not a dict, got "{0}"({1})'.format( data, type( data ).__name__ ), self.cookie )
 
-    logging.debug( 'handler: results of "{0}" with "{1}" is "{2}"'.format( self.function, _hideify( self.paramaters ), data ) )
+    logging.debug( 'handler: results of "{0}" with "{1}" is "{2}"'.format( self.function, _hideify( self.parameters ), data ) )
     response = 'Error'
     while response == 'Error':
       response = await self.contractor.jobResults( self.job_id, data, self.cookie )  # this is after releasing the semaphore so we are not holding things up if sending the results requires retries
@@ -74,7 +77,7 @@ class JobWorker():
         raise Exception( 'Unknown jobResults response "{0}"'.format( response ) )
 
       logging.debug( 'handler: Contractor said it had an error, sleeping before trying again...' )
-      asyncio.sleep( 60 )
+      await asyncio.sleep( 60 )
 
 
 class Handler():
@@ -133,7 +136,7 @@ class Handler():
         logging.error( 'handler: Unable to find function "{0}" in module "{1}", job dropped.'.format( job[ 'function' ], job[ 'module' ] ) )
         continue
 
-      worker = JobWorker( self.contractor, job[ 'cookie' ], job[ 'job_id' ], function, job[ 'paramaters' ], semaphore )
+      worker = JobWorker( self.contractor, job[ 'cookie' ], job[ 'job_id' ], function, job[ 'parameters' ], semaphore )
       self.task_list.append( asyncio.create_task( worker.run() ) )
 
   def checkTasks( self ):

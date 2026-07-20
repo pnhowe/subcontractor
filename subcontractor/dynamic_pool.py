@@ -19,7 +19,7 @@ class DynamicPool():
     self.lease_delta = timedelta( seconds=lease_time )
     self.address_map_lock = Semaphore()
 
-  async def update_paramaters( self, gateway, netmask, dns_server, domain_name, address_list ):
+  async def update_parameters( self, gateway, netmask, dns_server, domain_name, address_list ):
     self.netmask = ipv4( netmask ).list()
     self.gateway = ipv4( gateway ).list() if gateway is not None else None
     self.domain_name = strlist( domain_name ).list()

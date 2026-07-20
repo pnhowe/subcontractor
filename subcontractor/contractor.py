@@ -43,6 +43,9 @@ class Contractor():
     return self
 
   async def __aexit__( self, exc_type, exc, tb ):
+    if not self.cinp:
+      return
+
     await self.logout()
     await self.cinp.__aexit__( exc_type, exc, tb )
     self.cinp = None
